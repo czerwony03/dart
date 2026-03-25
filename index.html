@@ -476,6 +476,30 @@
       max-width: 340px;
     }
 
+    /* ─── Language selector ──────────────────────────────────────────────────── */
+    .lang-selector {
+      display: flex;
+      gap: 0.3rem;
+      align-self: flex-end;
+      width: 100%;
+      max-width: 420px;
+      justify-content: flex-end;
+    }
+
+    .lang-btn {
+      background: #2e2e4a;
+      color: #888;
+      border: none;
+      border-radius: 8px;
+      padding: 0.35rem 0.65rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .lang-btn.lang-active { background: #e94560; color: #fff; }
+
     /* ─── Toast ──────────────────────────────────────────────────────────────── */
     .toast-overlay {
       position: fixed;
@@ -512,6 +536,95 @@ const { useState, useEffect, useCallback, useRef, useMemo, memo } = React;
 const BOARD      = [20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
 const LS_ACTIVE  = 'dart501_active';
 const LS_HISTORY = 'dart501_history';
+const LS_LANG    = 'dart501_lang';
+
+/* ─── Translations ───────────────────────────────────────────────────────────── */
+const TRANSLATIONS = {
+  en: {
+    inProgress:       'In Progress',
+    round:            'Round',
+    resume:           'Resume',
+    newGame:          '🎯 New Game',
+    pastGames:        'Past Games',
+    clearAll:         'Clear All',
+    emptyHint:        'Start your first game above!',
+    rounds:           'rounds',
+    back:             '← Back',
+    newGameTitle:     'New Game',
+    enterNames:       'Enter player names to begin',
+    playerPlaceholder:'Player',
+    addPlayer:        '＋ Add Player',
+    startGame:        '🎯 Start Game',
+    minPlayers:       'Enter at least 2 player names.',
+    nextPlayer:       'Next Player →',
+    skipTurn:         'Skip Turn →',
+    doneNext:         'Done & Next →',
+    turn:             'TURN',
+    bust:             '⚠️ BUST — turn score reset',
+    manualHint:       '0–60 pts per dart',
+    miss:             'Miss',
+    add:              'Add',
+    undo:             '↩ Undo',
+    wins:             'Wins!',
+    game501Round:     'Game 501 · Round',
+    rematch:          '🔄 Rematch (same players)',
+    newGameBtn:       '🎯 New Game',
+    home:             '⌂ Home',
+    backToHome:       '← Back to Home',
+    confirmInProgress:'A game is in progress. Start a new game anyway? (Current game will be lost)',
+    confirmClear:     'Delete all past games?',
+    avg:              'avg',
+    bustToast:        'BUST!',
+    deleteGame:       'Delete game',
+    removePlayer:     'Remove player',
+    goHome:           'Go home',
+    dartboardLabel:   'Interactive dartboard',
+  },
+  pl: {
+    inProgress:       'W trakcie',
+    round:            'Runda',
+    resume:           'Wznów',
+    newGame:          '🎯 Nowa gra',
+    pastGames:        'Poprzednie gry',
+    clearAll:         'Wyczyść',
+    emptyHint:        'Rozpocznij swoją pierwszą grę!',
+    rounds:           'rundy',
+    back:             '← Wstecz',
+    newGameTitle:     'Nowa gra',
+    enterNames:       'Podaj imiona graczy',
+    playerPlaceholder:'Gracz',
+    addPlayer:        '＋ Dodaj gracza',
+    startGame:        '🎯 Rozpocznij grę',
+    minPlayers:       'Podaj co najmniej 2 imiona graczy.',
+    nextPlayer:       'Następny gracz →',
+    skipTurn:         'Pomiń turę →',
+    doneNext:         'Zatwierdź i dalej →',
+    turn:             'TURA',
+    bust:             '⚠️ BUST — wynik tury zresetowany',
+    manualHint:       '0–60 pkt na rzut',
+    miss:             'Pudło',
+    add:              'Dodaj',
+    undo:             '↩ Cofnij',
+    wins:             'Wygrywa!',
+    game501Round:     'Gra 501 · Runda',
+    rematch:          '🔄 Rewanż (ci sami gracze)',
+    newGameBtn:       '🎯 Nowa gra',
+    home:             '⌂ Dom',
+    backToHome:       '← Powrót do menu',
+    confirmInProgress:'Gra jest w toku. Rozpocząć nową grę? (Bieżąca gra zostanie utracona)',
+    confirmClear:     'Usunąć wszystkie poprzednie gry?',
+    avg:              'śr',
+    bustToast:        'BUST!',
+    deleteGame:       'Usuń grę',
+    removePlayer:     'Usuń gracza',
+    goHome:           'Wróć do menu',
+    dartboardLabel:   'Interaktywna tarcza do darta',
+  },
+};
+
+/* ─── Language context ───────────────────────────────────────────────────────── */
+const LangContext = React.createContext({ lang: 'en', setLang: () => {}, t: k => k });
+function useLang() { return React.useContext(LangContext); }
 
 /* ─── localStorage helpers ───────────────────────────────────────────────────── */
 const readActive   = () => { try { return JSON.parse(localStorage.getItem(LS_ACTIVE))  || null; } catch { return null; } };
@@ -582,6 +695,7 @@ function Toast({ msg }) {
 
 /* ─── Dartboard SVG ──────────────────────────────────────────────────────────── */
 const Dartboard = memo(function Dartboard({ onHit }) {
+  const { t } = useLang();
   const CX = 180, CY = 180, DEG = 18;
   const R  = { BOARD: 175, NUM: 164, DBL_O: 155, DBL_I: 141,
                TPL_O: 97,  TPL_I: 84, BULL_O: 26, BULL_I: 12 };
@@ -620,7 +734,7 @@ const Dartboard = memo(function Dartboard({ onHit }) {
 
   return (
     <svg className="dartboard-svg" viewBox="0 0 360 360"
-         role="img" aria-label="Interactive dartboard">
+         role="img" aria-label={t('dartboardLabel')}>
       <circle cx={CX} cy={CY} r={R.BOARD} fill="#111" stroke="#444" strokeWidth="1.5" />
       {segData.map(seg =>
         seg.type === 'text'
@@ -643,6 +757,7 @@ const Dartboard = memo(function Dartboard({ onHit }) {
 
 /* ─── HomeScreen ─────────────────────────────────────────────────────────────── */
 function HomeScreen({ history, onNewGame, onResume, onViewGame, onDeleteGame, onClearHistory }) {
+  const { t, lang, setLang } = useLang();
   const active = readActive();
 
   const handleDelete = (e, id) => {
@@ -652,6 +767,11 @@ function HomeScreen({ history, onNewGame, onResume, onViewGame, onDeleteGame, on
 
   return (
     <div className="home-screen">
+      <div className="lang-selector">
+        <button className={`lang-btn${lang === 'en' ? ' lang-active' : ''}`} onClick={() => setLang('en')}>EN</button>
+        <button className={`lang-btn${lang === 'pl' ? ' lang-active' : ''}`} onClick={() => setLang('pl')}>PL</button>
+      </div>
+
       <div className="home-header">
         <span className="home-emoji">🎯</span>
         <h1 className="home-title">Dart 501</h1>
@@ -660,25 +780,25 @@ function HomeScreen({ history, onNewGame, onResume, onViewGame, onDeleteGame, on
       {active && (
         <div className="active-card">
           <div>
-            <span className="active-badge">In Progress</span>
+            <span className="active-badge">{t('inProgress')}</span>
             <div className="active-players">{active.players.join(' · ')}</div>
-            <div className="active-meta">Round {active.round}</div>
+            <div className="active-meta">{t('round')} {active.round}</div>
           </div>
-          <button className="btn btn-green" onClick={onResume}>Resume</button>
+          <button className="btn btn-green" onClick={onResume}>{t('resume')}</button>
         </div>
       )}
 
       <button className="btn btn-red home-full-width"
               style={{ fontSize: '1.1rem', padding: '1rem' }}
               onClick={onNewGame}>
-        🎯 New Game
+        {t('newGame')}
       </button>
 
       {history.length > 0 && (
         <div className="history-section">
           <div className="history-header">
-            <span className="history-title">Past Games</span>
-            <button className="btn btn-gray btn-sm" onClick={onClearHistory}>Clear All</button>
+            <span className="history-title">{t('pastGames')}</span>
+            <button className="btn btn-gray btn-sm" onClick={onClearHistory}>{t('clearAll')}</button>
           </div>
           <div className="history-list">
             {history.map(g => (
@@ -688,11 +808,11 @@ function HomeScreen({ history, onNewGame, onResume, onViewGame, onDeleteGame, on
                    onKeyDown={e => e.key === 'Enter' && onViewGame(g)}>
                 <div className="hist-info">
                   <div className="hist-winner">🏆 {g.players[g.winner]}</div>
-                  <div className="hist-meta">{g.players.join(' · ')} · {g.round} rounds</div>
+                  <div className="hist-meta">{g.players.join(' · ')} · {g.round} {t('rounds')}</div>
                   <div className="hist-date">{fmtDate(g.finishedAt)}</div>
                 </div>
                 <button className="btn btn-gray btn-icon del-btn"
-                        aria-label="Delete game"
+                        aria-label={t('deleteGame')}
                         onClick={e => handleDelete(e, g.id)}>✕</button>
               </div>
             ))}
@@ -701,7 +821,7 @@ function HomeScreen({ history, onNewGame, onResume, onViewGame, onDeleteGame, on
       )}
 
       {history.length === 0 && !active && (
-        <p className="empty-hint">Start your first game above!</p>
+        <p className="empty-hint">{t('emptyHint')}</p>
       )}
     </div>
   );
@@ -709,6 +829,7 @@ function HomeScreen({ history, onNewGame, onResume, onViewGame, onDeleteGame, on
 
 /* ─── SetupScreen ────────────────────────────────────────────────────────────── */
 function SetupScreen({ onStart, onBack }) {
+  const { t } = useLang();
   const [players, setPlayers] = useState(['', '']);
   const [error,   setError]   = useState('');
 
@@ -718,7 +839,7 @@ function SetupScreen({ onStart, onBack }) {
 
   const handleStart = () => {
     const names = players.map(n => n.trim()).filter(Boolean);
-    if (names.length < 2) { setError('Enter at least 2 player names.'); return; }
+    if (names.length < 2) { setError(t('minPlayers')); return; }
     setError('');
     onStart(names);
   };
@@ -731,10 +852,10 @@ function SetupScreen({ onStart, onBack }) {
 
   return (
     <div className="setup-screen">
-      <button className="btn btn-gray back-btn" onClick={onBack}>← Back</button>
+      <button className="btn btn-gray back-btn" onClick={onBack}>{t('back')}</button>
       <span className="setup-emoji">🎯</span>
-      <h1 className="setup-title">New Game</h1>
-      <p className="setup-subtitle">Enter player names to begin</p>
+      <h1 className="setup-title">{t('newGameTitle')}</h1>
+      <p className="setup-subtitle">{t('enterNames')}</p>
 
       <div className="player-list">
         {players.map((name, i) => (
@@ -744,7 +865,7 @@ function SetupScreen({ onStart, onBack }) {
               id={`pname-${i}`}
               type="text"
               value={name}
-              placeholder={`Player ${i + 1}`}
+              placeholder={`${t('playerPlaceholder')} ${i + 1}`}
               maxLength={20}
               autoComplete="off"
               inputMode="text"
@@ -754,7 +875,7 @@ function SetupScreen({ onStart, onBack }) {
             />
             {players.length > 2 && (
               <button className="btn btn-gray btn-icon"
-                      aria-label={`Remove player ${i + 1}`}
+                      aria-label={`${t('removePlayer')} ${i + 1}`}
                       onClick={() => delPlayer(i)}>✕</button>
             )}
           </div>
@@ -763,11 +884,11 @@ function SetupScreen({ onStart, onBack }) {
 
       <div className="setup-actions">
         {players.length < 4 && (
-          <button className="btn btn-gray" onClick={addPlayer}>＋ Add Player</button>
+          <button className="btn btn-gray" onClick={addPlayer}>{t('addPlayer')}</button>
         )}
         <button className="btn btn-red"
                 style={{ fontSize: '1.1rem', padding: '1rem' }}
-                onClick={handleStart}>🎯 Start Game</button>
+                onClick={handleStart}>{t('startGame')}</button>
         {error && <p className="setup-error">{error}</p>}
       </div>
     </div>
@@ -776,6 +897,7 @@ function SetupScreen({ onStart, onBack }) {
 
 /* ─── GameScreen ─────────────────────────────────────────────────────────────── */
 function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome }) {
+  const { t } = useLang();
   const [manualVal, setManualVal] = useState('');
   const [manualErr, setManualErr] = useState(false);
   const inputRef = useRef(null);
@@ -784,8 +906,8 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome }) {
   const locked = game.darts.length >= 3 || game.isBust;
 
   const nextLabel = (game.darts.length >= 3 || game.isBust)
-    ? 'Next Player →'
-    : game.darts.length === 0 ? 'Skip Turn →' : 'Done & Next →';
+    ? t('nextPlayer')
+    : game.darts.length === 0 ? t('skipTurn') : t('doneNext');
 
   const submitManual = () => {
     const v = parseInt(manualVal, 10);
@@ -802,11 +924,11 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome }) {
   return (
     <div className="game-screen">
       <div className="game-header">
-        <span className="round-badge">Round {game.round}</span>
+        <span className="round-badge">{t('round')} {game.round}</span>
         <span className="cp-name">{game.players[cp]}</span>
         <div className="header-right">
           <span className="dart-counter">{game.darts.length}/3 🎯</span>
-          <button className="btn btn-icon home-icon" onClick={onHome} aria-label="Go home">⌂</button>
+          <button className="btn btn-icon home-icon" onClick={onHome} aria-label={t('goHome')}>⌂</button>
         </div>
       </div>
 
@@ -819,7 +941,7 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome }) {
             <div key={i} className={`score-card${i === cp ? ' active' : ''}`}>
               <span className="sc-name">{name}</span>
               <span className="sc-val">{game.scores[i]}</span>
-              <span className="sc-avg">avg {avg}</span>
+              <span className="sc-avg">{t('avg')} {avg}</span>
             </div>
           );
         })}
@@ -839,19 +961,19 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome }) {
             })}
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div className="turn-lbl">TURN</div>
+            <div className="turn-lbl">{t('turn')}</div>
             <div className="turn-val">{game.turnScore}</div>
           </div>
         </div>
 
-        {game.isBust && <div className="bust-bar">⚠️ BUST — turn score reset</div>}
+        {game.isBust && <div className="bust-bar">{t('bust')}</div>}
 
         <div className="manual-row">
           <input
             ref={inputRef}
             type="number"
             min="0" max="60"
-            placeholder="0–60 pts per dart"
+            placeholder={t('manualHint')}
             inputMode="numeric"
             value={manualVal}
             disabled={locked}
@@ -860,15 +982,15 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome }) {
             onKeyDown={e => e.key === 'Enter' && submitManual()}
           />
           <button className="btn btn-amber" disabled={locked}
-                  onClick={() => onDartHit(0, 'Miss', true)}>Miss</button>
+                  onClick={() => onDartHit(0, 'Miss', true)}>{t('miss')}</button>
           <button className="btn btn-green" disabled={locked}
-                  onClick={submitManual}>Add</button>
+                  onClick={submitManual}>{t('add')}</button>
         </div>
 
         <div className="action-row">
           <button className="btn btn-gray" style={{ flex: 1 }}
                   disabled={game.darts.length === 0 && !game.isBust && !(game.stateHistory && game.stateHistory.length > 0)}
-                  onClick={onUndo}>↩ Undo</button>
+                  onClick={onUndo}>{t('undo')}</button>
           <button className="btn btn-red" style={{ flex: 2 }}
                   onClick={onAdvance}>{nextLabel}</button>
         </div>
@@ -879,14 +1001,15 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome }) {
 
 /* ─── WinScreen ──────────────────────────────────────────────────────────────── */
 function WinScreen({ game, onRematch, onNewGame, onHome, readOnly = false }) {
+  const { t } = useLang();
   return (
     <div className="win-screen">
       {readOnly && (
-        <button className="btn btn-gray back-btn" onClick={onHome}>← Back</button>
+        <button className="btn btn-gray back-btn" onClick={onHome}>{t('back')}</button>
       )}
       <div className="trophy">🏆</div>
-      <div className="win-title">{game.players[game.winner]} Wins!</div>
-      <div className="win-sub">Game 501 · Round {game.round}</div>
+      <div className="win-title">{game.players[game.winner]} {t('wins')}</div>
+      <div className="win-sub">{t('game501Round')} {game.round}</div>
       {game.finishedAt && <div className="win-date">{fmtDate(game.finishedAt)}</div>}
 
       <div className="final-scores">
@@ -902,16 +1025,16 @@ function WinScreen({ game, onRematch, onNewGame, onHome, readOnly = false }) {
         {readOnly ? (
           <button className="btn btn-red"
                   style={{ fontSize: '1.1rem', padding: '1rem' }}
-                  onClick={onHome}>← Back to Home</button>
+                  onClick={onHome}>{t('backToHome')}</button>
         ) : (
           <>
             <button className="btn btn-red"
                     style={{ fontSize: '1.1rem', padding: '1rem' }}
-                    onClick={onRematch}>🔄 Rematch (same players)</button>
+                    onClick={onRematch}>{t('rematch')}</button>
             <button className="btn btn-gray" style={{ padding: '0.9rem' }}
-                    onClick={onNewGame}>🎯 New Game</button>
+                    onClick={onNewGame}>{t('newGameBtn')}</button>
             <button className="btn btn-gray" style={{ padding: '0.9rem' }}
-                    onClick={onHome}>⌂ Home</button>
+                    onClick={onHome}>{t('home')}</button>
           </>
         )}
       </div>
@@ -925,6 +1048,16 @@ function App() {
   const [game,    setGame]    = useState(null);
   const [history, setHistory] = useState(() => readHistory());
   const [toastMsg, showToast] = useToast();
+  const [lang, setLangState]  = useState(() => {
+    try { return localStorage.getItem(LS_LANG) || 'en'; } catch { return 'en'; }
+  });
+
+  const setLang = useCallback(l => {
+    setLangState(l);
+    try { localStorage.setItem(LS_LANG, l); } catch { /* private/storage-full — silently ignore */ }
+  }, []);
+
+  const t = useCallback(key => (TRANSLATIONS[lang] || TRANSLATIONS.en)[key] || key, [lang]);
 
   /* Auto-save active game to localStorage whenever in-progress state changes */
   useEffect(() => {
@@ -945,20 +1078,20 @@ function App() {
   const wasBustRef = useRef(false);
   useEffect(() => {
     const bust = game?.isBust ?? false;
-    if (bust && !wasBustRef.current) showToast('BUST!');
+    if (bust && !wasBustRef.current) showToast(t('bustToast'));
     wasBustRef.current = bust;
-  }, [game?.isBust, showToast]);
+  }, [game?.isBust, showToast, t]);
 
   /* ── Navigation ── */
   const goHome = useCallback(() => { setGame(null); setScreen('home'); }, []);
 
   const handleNewGame = useCallback(() => {
     if (readActive()) {
-      if (!window.confirm('A game is in progress. Start a new game anyway? (Current game will be lost)')) return;
+      if (!window.confirm(t('confirmInProgress'))) return;
       clearActive();
     }
     setScreen('setup');
-  }, []);
+  }, [t]);
 
   const handleStart = useCallback(players => {
     setGame(newGame(players));
@@ -979,10 +1112,10 @@ function App() {
   }, []);
 
   const handleClearHistory = useCallback(() => {
-    if (!window.confirm('Delete all past games?')) return;
+    if (!window.confirm(t('confirmClear'))) return;
     writeHistory([]);
     setHistory([]);
-  }, []);
+  }, [t]);
 
   /* ── Game actions ── */
   const dartHit = useCallback((score, label, isMiss = false) => {
@@ -1038,42 +1171,44 @@ function App() {
 
   /* ── Render ── */
   return (
-    <>
-      {screen === 'home' && (
-        <HomeScreen
-          history={history}
-          onNewGame={handleNewGame}
-          onResume={handleResume}
-          onViewGame={handleViewGame}
-          onDeleteGame={handleDeleteGame}
-          onClearHistory={handleClearHistory}
-        />
-      )}
-      {screen === 'setup' && (
-        <SetupScreen onStart={handleStart} onBack={goHome} />
-      )}
-      {screen === 'game' && game && (
-        <GameScreen
-          game={game}
-          onDartHit={dartHit}
-          onUndo={undoDart}
-          onAdvance={advancePlayer}
-          onHome={goHome}
-        />
-      )}
-      {screen === 'win' && game && (
-        <WinScreen
-          game={game}
-          onRematch={rematch}
-          onNewGame={handleNewGame}
-          onHome={goHome}
-        />
-      )}
-      {screen === 'view' && game && (
-        <WinScreen game={game} onHome={goHome} readOnly={true} />
-      )}
-      <Toast msg={toastMsg} />
-    </>
+    <LangContext.Provider value={{ lang, setLang, t }}>
+      <>
+        {screen === 'home' && (
+          <HomeScreen
+            history={history}
+            onNewGame={handleNewGame}
+            onResume={handleResume}
+            onViewGame={handleViewGame}
+            onDeleteGame={handleDeleteGame}
+            onClearHistory={handleClearHistory}
+          />
+        )}
+        {screen === 'setup' && (
+          <SetupScreen onStart={handleStart} onBack={goHome} />
+        )}
+        {screen === 'game' && game && (
+          <GameScreen
+            game={game}
+            onDartHit={dartHit}
+            onUndo={undoDart}
+            onAdvance={advancePlayer}
+            onHome={goHome}
+          />
+        )}
+        {screen === 'win' && game && (
+          <WinScreen
+            game={game}
+            onRematch={rematch}
+            onNewGame={handleNewGame}
+            onHome={goHome}
+          />
+        )}
+        {screen === 'view' && game && (
+          <WinScreen game={game} onHome={goHome} readOnly={true} />
+        )}
+        <Toast msg={toastMsg} />
+      </>
+    </LangContext.Provider>
   );
 }
 
