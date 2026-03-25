@@ -812,9 +812,9 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome }) {
 
       <div className="scoreboard">
         {game.players.map((name, i) => {
-          const turnsCompleted = i < cp ? game.round : game.round - 1;
-          const pointsScored   = 501 - game.scores[i];
-          const avg            = turnsCompleted > 0 ? (pointsScored / turnsCompleted).toFixed(1) : '—';
+          const roundsCompleted = i < cp ? game.round : game.round - 1;
+          const pointsScored    = 501 - game.scores[i];
+          const avg             = roundsCompleted > 0 ? (pointsScored / roundsCompleted).toFixed(1) : '—';
           return (
             <div key={i} className={`score-card${i === cp ? ' active' : ''}`}>
               <span className="sc-name">{name}</span>
