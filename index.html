@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>🎯 Dart 501</title>
+  <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.25.9/babel.min.js"></script>
+  <style>
+    /* ─── Reset & Base ───────────────────────────────────────────────────────── */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #12121e;
+      color: #e8e8e8;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    /* ─── Buttons ────────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.8rem 1.4rem;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      line-height: 1;
+      user-select: none;
+      transition: filter 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .btn:active:not(:disabled) { transform: scale(0.95); }
+    .btn:disabled { opacity: 0.38; cursor: default; }
+
+    .btn-red   { background: #e94560; color: #fff; }
+    .btn-green { background: #27ae60; color: #fff; }
+    .btn-gray  { background: #2e2e4a; color: #ccc; }
+    .btn-amber { background: #e67e22; color: #fff; }
+    .btn-icon  { padding: 0.75rem; width: 44px; height: 44px; border-radius: 10px; }
+    .btn-sm    { font-size: 0.78rem; padding: 0.4rem 0.75rem; border-radius: 8px; }
+
+    /* ─── Inputs ─────────────────────────────────────────────────────────────── */
+    input[type="text"],
+    input[type="number"] {
+      padding: 0.8rem 1rem;
+      border: 2px solid #2e2e4a;
+      border-radius: 10px;
+      background: #1c1c30;
+      color: #fff;
+      font-size: 1rem;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus { border-color: #e94560; }
+
+    /* ─── HOME SCREEN ────────────────────────────────────────────────────────── */
+    .home-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1.5rem 3rem;
+      gap: 1.25rem;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    .home-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+      padding-top: 0.5rem;
+    }
+
+    .home-emoji { font-size: 4rem; line-height: 1; }
+
+    .home-title {
+      font-size: 2.4rem;
+      font-weight: 800;
+      color: #e94560;
+      letter-spacing: -0.5px;
+    }
+
+    .home-full-width {
+      width: 100%;
+      max-width: 420px;
+    }
+
+    /* Active (in-progress) game card */
+    .active-card {
+      width: 100%;
+      max-width: 420px;
+      background: #1a1a2e;
+      border: 2px solid #27ae60;
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .active-badge {
+      display: inline-block;
+      background: #27ae60;
+      color: #fff;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 20px;
+      margin-bottom: 0.3rem;
+    }
+
+    .active-players { font-weight: 600; font-size: 0.95rem; }
+    .active-meta    { font-size: 0.78rem; color: #888; margin-top: 0.15rem; }
+
+    /* History section */
+    .history-section {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .history-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .history-list { display: flex; flex-direction: column; gap: 0.45rem; }
+
+    .hist-item {
+      background: #171730;
+      border-radius: 12px;
+      padding: 0.8rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .hist-item:hover,
+    .hist-item:focus { background: #1f1f42; outline: none; }
+
+    .hist-info   { flex: 1; min-width: 0; }
+    .hist-winner { font-weight: 700; font-size: 0.88rem; }
+    .hist-meta   { font-size: 0.73rem; color: #888; margin-top: 0.1rem;
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hist-date   { font-size: 0.7rem; color: #555; margin-top: 0.1rem; }
+
+    .del-btn { color: #666; background: #0e0e20; flex-shrink: 0; }
+    .del-btn:hover { color: #e94560; background: #1a0010; }
+
+    .empty-hint { color: #444; font-size: 0.9rem; }
+
+    /* ─── SETUP SCREEN ───────────────────────────────────────────────────────── */
+    .setup-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 1.5rem 1.5rem 3rem;
+      gap: 1.25rem;
+    }
+
+    .setup-emoji { font-size: 4rem; line-height: 1; }
+
+    .setup-title {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #e94560;
+      letter-spacing: -0.5px;
+    }
+
+    .setup-subtitle { color: #666; font-size: 0.9rem; }
+
+    .back-btn { align-self: flex-start; }
+
+    .player-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .player-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .player-num {
+      color: #555;
+      font-size: 0.85rem;
+      min-width: 22px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .setup-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .setup-error {
+      color: #e94560;
+      font-size: 0.82rem;
+      text-align: center;
+    }
+
+    /* ─── GAME SCREEN ────────────────────────────────────────────────────────── */
+    .game-screen {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    .game-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0.75rem;
+      background: #0e1a35;
+      flex-shrink: 0;
+      gap: 0.5rem;
+    }
+
+    .round-badge {
+      background: #e94560;
+      color: #fff;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .cp-name {
+      font-weight: 700;
+      font-size: 1rem;
+      color: #ffd700;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex-shrink: 0;
+    }
+
+    .dart-counter { font-size: 0.82rem; color: #888; }
+
+    .home-icon {
+      background: transparent;
+      color: #666;
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      font-size: 1.1rem;
+      border-radius: 8px;
+    }
+
+    .home-icon:hover { color: #ccc; background: #1a1a30; }
+
+    /* Scoreboard */
+    .scoreboard {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      background: #171730;
+      padding: 0.4rem 0.9rem;
+      scrollbar-width: none;
+      flex-shrink: 0;
+    }
+
+    .scoreboard::-webkit-scrollbar { display: none; }
+
+    .score-card {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0.3rem 0.65rem;
+      border-radius: 8px;
+      background: #0e1a35;
+      min-width: 60px;
+      transition: background 0.2s;
+    }
+
+    .score-card.active { background: #e94560; }
+
+    .sc-name {
+      font-size: 0.65rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 68px;
+    }
+
+    .sc-val { font-size: 1.35rem; font-weight: 700; }
+
+    /* Dartboard */
+    .dartboard-wrap {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      overflow: hidden;
+    }
+
+    .dartboard-svg {
+      width: 100%;
+      height: 100%;
+      max-width: 340px;
+      max-height: 340px;
+    }
+
+    .dseg { cursor: pointer; transition: opacity 0.1s; }
+    .dseg:hover  { opacity: 0.78; }
+    .dseg:active { opacity: 0.55; }
+
+    /* Bottom panel */
+    .game-bottom { flex-shrink: 0; background: #0b0b1a; }
+
+    .throw-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.4rem 1rem;
+      background: #171730;
+    }
+
+    .dart-chips { display: flex; gap: 0.4rem; flex: 1; }
+
+    .chip {
+      flex: 1;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 7px;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .chip-used  { background: #1d5c36; color: #7effc0; }
+    .chip-miss  { background: #3a2000; color: #ffa040; }
+    .chip-empty { background: #1a1a30; border: 1px dashed #2e2e4e; color: #333; }
+
+    .turn-lbl { font-size: 0.65rem; color: #666; line-height: 1; }
+    .turn-val {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #ffd700;
+      min-width: 50px;
+      text-align: right;
+    }
+
+    .bust-bar {
+      text-align: center;
+      color: #ff4444;
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 0.28rem;
+      background: #1f0000;
+    }
+
+    .manual-row {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.4rem 1rem;
+    }
+
+    .manual-row input { min-width: 0; }
+
+    .action-row {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.4rem 1rem 0.6rem;
+    }
+
+    /* ─── WIN SCREEN ─────────────────────────────────────────────────────────── */
+    .win-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 1.5rem 1.5rem 3rem;
+      gap: 1.25rem;
+      text-align: center;
+    }
+
+    .trophy { font-size: 6rem; line-height: 1; }
+
+    .win-title {
+      font-size: 2.1rem;
+      font-weight: 800;
+      color: #ffd700;
+    }
+
+    .win-sub  { color: #666; font-size: 0.92rem; }
+    .win-date { color: #444; font-size: 0.8rem;  }
+
+    .final-scores {
+      background: #171730;
+      border-radius: 14px;
+      padding: 0.9rem 1.1rem;
+      width: 100%;
+      max-width: 340px;
+    }
+
+    .fs-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid #2a2a40;
+      font-size: 0.93rem;
+    }
+
+    .fs-row:last-child { border-bottom: none; }
+    .fs-row.winner-row { color: #ffd700; font-weight: 700; }
+
+    .win-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 340px;
+    }
+
+    /* ─── Toast ──────────────────────────────────────────────────────────────── */
+    .toast-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    .toast-inner {
+      background: #b81c2e;
+      color: #fff;
+      font-size: 2rem;
+      font-weight: 800;
+      padding: 0.75rem 2rem;
+      border-radius: 14px;
+      opacity: 0;
+      transform: scale(0.75);
+      transition: opacity 0.18s, transform 0.18s;
+    }
+
+    .toast-inner.show { opacity: 1; transform: scale(1); }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef, useMemo, memo } = React;
+
+/* ─── Constants ──────────────────────────────────────────────────────────────── */
+const BOARD      = [20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
+const LS_ACTIVE  = 'dart501_active';
+const LS_HISTORY = 'dart501_history';
+
+/* ─── localStorage helpers ───────────────────────────────────────────────────── */
+const readActive   = () => { try { return JSON.parse(localStorage.getItem(LS_ACTIVE))  || null; } catch { return null; } };
+const writeActive  = g  => localStorage.setItem(LS_ACTIVE, JSON.stringify(g));
+const clearActive  = () => localStorage.removeItem(LS_ACTIVE);
+const readHistory  = () => { try { return JSON.parse(localStorage.getItem(LS_HISTORY)) || [];   } catch { return []; }   };
+const writeHistory = h  => localStorage.setItem(LS_HISTORY, JSON.stringify(h));
+
+function pushToHistory(game) {
+  const h   = readHistory();
+  const idx = h.findIndex(g => g.id === game.id);
+  if (idx >= 0) h[idx] = game; else h.unshift(game);
+  writeHistory(h);
+}
+
+/* ─── Game factory ───────────────────────────────────────────────────────────── */
+function genId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+function newGame(players) {
+  return {
+    id:            genId(),
+    phase:         'playing',
+    players,
+    scores:        players.map(() => 501),
+    currentPlayer: 0,
+    round:         1,
+    darts:         [],
+    turnScore:     0,
+    isBust:        false,
+    winner:        -1,
+    startedAt:     Date.now(),
+    finishedAt:    null,
+  };
+}
+
+/* ─── Date formatting ────────────────────────────────────────────────────────── */
+function fmtDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+/* ─── Toast hook ─────────────────────────────────────────────────────────────── */
+function useToast() {
+  const [msg, setMsg]  = useState('');
+  const timerRef       = useRef(null);
+  const show           = useCallback(m => {
+    setMsg(m);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setMsg(''), 950);
+  }, []);
+  return [msg, show];
+}
+
+/* ─── Toast component ────────────────────────────────────────────────────────── */
+function Toast({ msg }) {
+  return (
+    <div className="toast-overlay" aria-live="assertive">
+      <div className={`toast-inner${msg ? ' show' : ''}`}>{msg}</div>
+    </div>
+  );
+}
+
+/* ─── Dartboard SVG ──────────────────────────────────────────────────────────── */
+const Dartboard = memo(function Dartboard({ onHit }) {
+  const CX = 180, CY = 180, DEG = 18;
+  const R  = { BOARD: 175, NUM: 164, DBL_O: 155, DBL_I: 141,
+               TPL_O: 97,  TPL_I: 84, BULL_O: 26, BULL_I: 12 };
+
+  /* Stable geometry — computed once regardless of onHit reference */
+  const segData = useMemo(() => {
+    const pts = (r, deg) => {
+      const rad = (deg - 90) * Math.PI / 180;
+      return { x: CX + r * Math.cos(rad), y: CY + r * Math.sin(rad) };
+    };
+    const arc = (rIn, rOut, a1, a2) => {
+      const p1 = pts(rOut, a1), p2 = pts(rOut, a2);
+      const p3 = pts(rIn,  a2), p4 = pts(rIn,  a1);
+      const lg = (a2 - a1) > 180 ? 1 : 0;
+      const f  = v => v.toFixed(2);
+      return `M${f(p1.x)} ${f(p1.y)} A${rOut} ${rOut} 0 ${lg} 1 ${f(p2.x)} ${f(p2.y)} `
+           + `L${f(p3.x)} ${f(p3.y)} A${rIn} ${rIn} 0 ${lg} 0 ${f(p4.x)} ${f(p4.y)} Z`;
+    };
+    const data = [];
+    BOARD.forEach((num, i) => {
+      const a1 = i * DEG - DEG / 2, a2 = a1 + DEG;
+      const light = i % 2 === 0;
+      const bc    = light ? '#f0d9a8' : '#1e1e1e';
+      const rc    = light ? '#c0392b' : '#27ae60';
+      const lp    = pts(R.NUM, i * DEG);
+      data.push(
+        { type: 'path', key: `si${num}`, d: arc(R.TPL_O, R.DBL_I, a1, a2), fill: bc, score: num,     label: String(num) },
+        { type: 'path', key: `so${num}`, d: arc(R.BULL_O, R.TPL_I, a1, a2), fill: bc, score: num,     label: String(num) },
+        { type: 'path', key: `t${num}`,  d: arc(R.TPL_I, R.TPL_O, a1, a2), fill: rc, score: num * 3, label: `T${num}` },
+        { type: 'path', key: `d${num}`,  d: arc(R.DBL_I, R.DBL_O, a1, a2), fill: rc, score: num * 2, label: `D${num}` },
+        { type: 'text', key: `n${num}`,  x: lp.x.toFixed(1), y: lp.y.toFixed(1), label: String(num) },
+      );
+    });
+    return data;
+  }, []); // no deps — board geometry never changes
+
+  return (
+    <svg className="dartboard-svg" viewBox="0 0 360 360"
+         role="img" aria-label="Interactive dartboard">
+      <circle cx={CX} cy={CY} r={R.BOARD} fill="#111" stroke="#444" strokeWidth="1.5" />
+      {segData.map(seg =>
+        seg.type === 'text'
+          ? <text key={seg.key} x={seg.x} y={seg.y}
+                  textAnchor="middle" dominantBaseline="middle"
+                  fill="#fff" fontSize="13" fontWeight="700"
+                  pointerEvents="none">{seg.label}</text>
+          : <path key={seg.key} className="dseg" d={seg.d} fill={seg.fill}
+                  onClick={() => onHit(seg.score, seg.label)}
+                  aria-label={seg.label} />
+      )}
+      <circle className="dseg" cx={CX} cy={CY} r={R.BULL_O}
+              fill="#27ae60" onClick={() => onHit(25, 'Bull')}  aria-label="Bull 25" />
+      <circle className="dseg" cx={CX} cy={CY} r={R.BULL_I}
+              fill="#c0392b" onClick={() => onHit(50, 'BULL')}  aria-label="BULL 50" />
+      <circle cx={CX} cy={CY} r={R.DBL_O} fill="none" stroke="#222" strokeWidth="1.5" />
+    </svg>
+  );
+});
+
+/* ─── HomeScreen ─────────────────────────────────────────────────────────────── */
+function HomeScreen({ history, onNewGame, onResume, onViewGame, onDeleteGame, onClearHistory }) {
+  const active = readActive();
+
+  const handleDelete = (e, id) => {
+    e.stopPropagation();
+    onDeleteGame(id);
+  };
+
+  return (
+    <div className="home-screen">
+      <div className="home-header">
+        <span className="home-emoji">🎯</span>
+        <h1 className="home-title">Dart 501</h1>
+      </div>
+
+      {active && (
+        <div className="active-card">
+          <div>
+            <span className="active-badge">In Progress</span>
+            <div className="active-players">{active.players.join(' · ')}</div>
+            <div className="active-meta">Round {active.round}</div>
+          </div>
+          <button className="btn btn-green" onClick={onResume}>Resume</button>
+        </div>
+      )}
+
+      <button className="btn btn-red home-full-width"
+              style={{ fontSize: '1.1rem', padding: '1rem' }}
+              onClick={onNewGame}>
+        🎯 New Game
+      </button>
+
+      {history.length > 0 && (
+        <div className="history-section">
+          <div className="history-header">
+            <span className="history-title">Past Games</span>
+            <button className="btn btn-gray btn-sm" onClick={onClearHistory}>Clear All</button>
+          </div>
+          <div className="history-list">
+            {history.map(g => (
+              <div key={g.id} className="hist-item"
+                   role="button" tabIndex={0}
+                   onClick={() => onViewGame(g)}
+                   onKeyDown={e => e.key === 'Enter' && onViewGame(g)}>
+                <div className="hist-info">
+                  <div className="hist-winner">🏆 {g.players[g.winner]}</div>
+                  <div className="hist-meta">{g.players.join(' · ')} · {g.round} rounds</div>
+                  <div className="hist-date">{fmtDate(g.finishedAt)}</div>
+                </div>
+                <button className="btn btn-gray btn-icon del-btn"
+                        aria-label="Delete game"
+                        onClick={e => handleDelete(e, g.id)}>✕</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {history.length === 0 && !active && (
+        <p className="empty-hint">Start your first game above!</p>
+      )}
+    </div>
+  );
+}
+
+/* ─── SetupScreen ────────────────────────────────────────────────────────────── */
+function SetupScreen({ onStart, onBack }) {
+  const [players, setPlayers] = useState(['', '']);
+  const [error,   setError]   = useState('');
+
+  const updateName = (i, val) => setPlayers(prev => { const p = [...prev]; p[i] = val; return p; });
+  const addPlayer  = ()       => { if (players.length < 4) setPlayers(p => [...p, '']); };
+  const delPlayer  = i        => setPlayers(p => p.filter((_, j) => j !== i));
+
+  const handleStart = () => {
+    const names = players.map(n => n.trim()).filter(Boolean);
+    if (names.length < 2) { setError('Enter at least 2 player names.'); return; }
+    setError('');
+    onStart(names);
+  };
+
+  const handleKey = (i, e) => {
+    if (e.key !== 'Enter') return;
+    if (i < players.length - 1) document.getElementById(`pname-${i + 1}`)?.focus();
+    else handleStart();
+  };
+
+  return (
+    <div className="setup-screen">
+      <button className="btn btn-gray back-btn" onClick={onBack}>← Back</button>
+      <span className="setup-emoji">🎯</span>
+      <h1 className="setup-title">New Game</h1>
+      <p className="setup-subtitle">Enter player names to begin</p>
+
+      <div className="player-list">
+        {players.map((name, i) => (
+          <div key={i} className="player-row">
+            <span className="player-num">{i + 1}.</span>
+            <input
+              id={`pname-${i}`}
+              type="text"
+              value={name}
+              placeholder={`Player ${i + 1}`}
+              maxLength={20}
+              autoComplete="off"
+              inputMode="text"
+              enterKeyHint="next"
+              onChange={e => updateName(i, e.target.value)}
+              onKeyDown={e => handleKey(i, e)}
+            />
+            {players.length > 2 && (
+              <button className="btn btn-gray btn-icon"
+                      aria-label={`Remove player ${i + 1}`}
+                      onClick={() => delPlayer(i)}>✕</button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="setup-actions">
+        {players.length < 4 && (
+          <button className="btn btn-gray" onClick={addPlayer}>＋ Add Player</button>
+        )}
+        <button className="btn btn-red"
+                style={{ fontSize: '1.1rem', padding: '1rem' }}
+                onClick={handleStart}>🎯 Start Game</button>
+        {error && <p className="setup-error">{error}</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ─── GameScreen ─────────────────────────────────────────────────────────────── */
+function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome }) {
+  const [manualVal, setManualVal] = useState('');
+  const [manualErr, setManualErr] = useState(false);
+  const inputRef = useRef(null);
+
+  const cp     = game.currentPlayer;
+  const locked = game.darts.length >= 3 || game.isBust;
+
+  const nextLabel = (game.darts.length >= 3 || game.isBust)
+    ? 'Next Player →'
+    : game.darts.length === 0 ? 'Skip Turn →' : 'Done & Next →';
+
+  const submitManual = () => {
+    const v = parseInt(manualVal, 10);
+    if (isNaN(v) || v < 0 || v > 60) {
+      setManualErr(true);
+      setTimeout(() => setManualErr(false), 700);
+      return;
+    }
+    onDartHit(v, String(v), false);
+    setManualVal('');
+    inputRef.current?.focus();
+  };
+
+  return (
+    <div className="game-screen">
+      <div className="game-header">
+        <span className="round-badge">Round {game.round}</span>
+        <span className="cp-name">{game.players[cp]}</span>
+        <div className="header-right">
+          <span className="dart-counter">{game.darts.length}/3 🎯</span>
+          <button className="btn btn-icon home-icon" onClick={onHome} aria-label="Go home">⌂</button>
+        </div>
+      </div>
+
+      <div className="scoreboard">
+        {game.players.map((name, i) => (
+          <div key={i} className={`score-card${i === cp ? ' active' : ''}`}>
+            <span className="sc-name">{name}</span>
+            <span className="sc-val">{game.scores[i]}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="dartboard-wrap">
+        <Dartboard onHit={onDartHit} />
+      </div>
+
+      <div className="game-bottom">
+        <div className="throw-row">
+          <div className="dart-chips">
+            {[0, 1, 2].map(i => {
+              const d = game.darts[i];
+              if (!d) return <div key={i} className="chip chip-empty">·</div>;
+              return <div key={i} className={`chip ${d.isMiss ? 'chip-miss' : 'chip-used'}`}>{d.label}</div>;
+            })}
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div className="turn-lbl">TURN</div>
+            <div className="turn-val">{game.turnScore}</div>
+          </div>
+        </div>
+
+        {game.isBust && <div className="bust-bar">⚠️ BUST — turn score reset</div>}
+
+        <div className="manual-row">
+          <input
+            ref={inputRef}
+            type="number"
+            min="0" max="60"
+            placeholder="0–60 pts per dart"
+            inputMode="numeric"
+            value={manualVal}
+            disabled={locked}
+            style={manualErr ? { borderColor: '#e94560' } : {}}
+            onChange={e => setManualVal(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && submitManual()}
+          />
+          <button className="btn btn-amber" disabled={locked}
+                  onClick={() => onDartHit(0, 'Miss', true)}>Miss</button>
+          <button className="btn btn-green" disabled={locked}
+                  onClick={submitManual}>Add</button>
+        </div>
+
+        <div className="action-row">
+          <button className="btn btn-gray" style={{ flex: 1 }}
+                  disabled={game.darts.length === 0 && !game.isBust}
+                  onClick={onUndo}>↩ Undo</button>
+          <button className="btn btn-red" style={{ flex: 2 }}
+                  onClick={onAdvance}>{nextLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── WinScreen ──────────────────────────────────────────────────────────────── */
+function WinScreen({ game, onRematch, onNewGame, onHome, readOnly = false }) {
+  return (
+    <div className="win-screen">
+      {readOnly && (
+        <button className="btn btn-gray back-btn" onClick={onHome}>← Back</button>
+      )}
+      <div className="trophy">🏆</div>
+      <div className="win-title">{game.players[game.winner]} Wins!</div>
+      <div className="win-sub">Game 501 · Round {game.round}</div>
+      {game.finishedAt && <div className="win-date">{fmtDate(game.finishedAt)}</div>}
+
+      <div className="final-scores">
+        {game.players.map((name, i) => (
+          <div key={i} className={`fs-row${i === game.winner ? ' winner-row' : ''}`}>
+            <span>{name}{i === game.winner ? ' 🏆' : ''}</span>
+            <span>{game.scores[i]}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="win-actions">
+        {readOnly ? (
+          <button className="btn btn-red"
+                  style={{ fontSize: '1.1rem', padding: '1rem' }}
+                  onClick={onHome}>← Back to Home</button>
+        ) : (
+          <>
+            <button className="btn btn-red"
+                    style={{ fontSize: '1.1rem', padding: '1rem' }}
+                    onClick={onRematch}>🔄 Rematch (same players)</button>
+            <button className="btn btn-gray" style={{ padding: '0.9rem' }}
+                    onClick={onNewGame}>🎯 New Game</button>
+            <button className="btn btn-gray" style={{ padding: '0.9rem' }}
+                    onClick={onHome}>⌂ Home</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── App ────────────────────────────────────────────────────────────────────── */
+function App() {
+  const [screen,  setScreen]  = useState('home');
+  const [game,    setGame]    = useState(null);
+  const [history, setHistory] = useState(() => readHistory());
+  const [toastMsg, showToast] = useToast();
+
+  /* Auto-save active game to localStorage whenever in-progress state changes */
+  useEffect(() => {
+    if (game?.phase === 'playing') writeActive(game);
+  }, [game]);
+
+  /* When a game is won, archive it and navigate to win screen */
+  useEffect(() => {
+    if (game?.phase === 'won' && screen === 'game') {
+      clearActive();
+      pushToHistory(game);
+      setHistory(readHistory());
+      setScreen('win');
+    }
+  }, [game?.phase, screen]);
+
+  /* Show BUST toast on transition to isBust */
+  const wasBustRef = useRef(false);
+  useEffect(() => {
+    const bust = game?.isBust ?? false;
+    if (bust && !wasBustRef.current) showToast('BUST!');
+    wasBustRef.current = bust;
+  }, [game?.isBust, showToast]);
+
+  /* ── Navigation ── */
+  const goHome = useCallback(() => { setGame(null); setScreen('home'); }, []);
+
+  const handleNewGame = useCallback(() => {
+    if (readActive()) {
+      if (!window.confirm('A game is in progress. Start a new game anyway? (Current game will be lost)')) return;
+      clearActive();
+    }
+    setScreen('setup');
+  }, []);
+
+  const handleStart = useCallback(players => {
+    setGame(newGame(players));
+    setScreen('game');
+  }, []);
+
+  const handleResume = useCallback(() => {
+    const active = readActive();
+    if (active) { setGame(active); setScreen('game'); }
+  }, []);
+
+  const handleViewGame = useCallback(g => { setGame(g); setScreen('view'); }, []);
+
+  const handleDeleteGame = useCallback(id => {
+    const h = readHistory().filter(g => g.id !== id);
+    writeHistory(h);
+    setHistory(h);
+  }, []);
+
+  const handleClearHistory = useCallback(() => {
+    if (!window.confirm('Delete all past games?')) return;
+    writeHistory([]);
+    setHistory([]);
+  }, []);
+
+  /* ── Game actions ── */
+  const dartHit = useCallback((score, label, isMiss = false) => {
+    setGame(prev => {
+      if (!prev || prev.darts.length >= 3 || prev.isBust) return prev;
+      const remaining = prev.scores[prev.currentPlayer] - prev.turnScore - score;
+      if (remaining < 0) return { ...prev, isBust: true };
+      const darts     = [...prev.darts, { score, label, isMiss }];
+      const turnScore = prev.turnScore + score;
+      if (remaining === 0) {
+        const scores = [...prev.scores];
+        scores[prev.currentPlayer] = 0;
+        return { ...prev, darts, turnScore, scores,
+                 winner: prev.currentPlayer, phase: 'won', finishedAt: Date.now() };
+      }
+      return { ...prev, darts, turnScore };
+    });
+  }, []);
+
+  const undoDart = useCallback(() => {
+    setGame(prev => {
+      if (!prev) return prev;
+      if (prev.isBust) return { ...prev, isBust: false };
+      if (prev.darts.length === 0) return prev;
+      const darts = prev.darts.slice(0, -1);
+      return { ...prev, darts, turnScore: prev.turnScore - prev.darts[prev.darts.length - 1].score };
+    });
+  }, []);
+
+  const advancePlayer = useCallback(() => {
+    setGame(prev => {
+      if (!prev) return prev;
+      const scores = [...prev.scores];
+      if (!prev.isBust) scores[prev.currentPlayer] -= prev.turnScore;
+      const cp = (prev.currentPlayer + 1) % prev.players.length;
+      return { ...prev, scores, currentPlayer: cp,
+               round: cp === 0 ? prev.round + 1 : prev.round,
+               darts: [], turnScore: 0, isBust: false };
+    });
+  }, []);
+
+  const rematch = useCallback(() => {
+    if (!game) return;
+    setGame(newGame(game.players));
+    setScreen('game');
+  }, [game]);
+
+  /* ── Render ── */
+  return (
+    <>
+      {screen === 'home' && (
+        <HomeScreen
+          history={history}
+          onNewGame={handleNewGame}
+          onResume={handleResume}
+          onViewGame={handleViewGame}
+          onDeleteGame={handleDeleteGame}
+          onClearHistory={handleClearHistory}
+        />
+      )}
+      {screen === 'setup' && (
+        <SetupScreen onStart={handleStart} onBack={goHome} />
+      )}
+      {screen === 'game' && game && (
+        <GameScreen
+          game={game}
+          onDartHit={dartHit}
+          onUndo={undoDart}
+          onAdvance={advancePlayer}
+          onHome={goHome}
+        />
+      )}
+      {screen === 'win' && game && (
+        <WinScreen
+          game={game}
+          onRematch={rematch}
+          onNewGame={handleNewGame}
+          onHome={goHome}
+        />
+      )}
+      {screen === 'view' && game && (
+        <WinScreen game={game} onHome={goHome} readOnly={true} />
+      )}
+      <Toast msg={toastMsg} />
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
