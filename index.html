@@ -546,7 +546,7 @@ function renderGame() {
   const full    = state.darts.length === 3;
   const nextLbl = (full || state.isBust)
     ? 'Next Player →'
-    : state.darts.length === 0 ? 'Skip Turn →' : 'Done &amp; Next →';
+    : state.darts.length === 0 ? 'Skip Turn →' : 'Done & Next →';
 
   return `
     <div id="game-screen">
@@ -791,7 +791,7 @@ function renderWin() {
     <div id="win-screen">
       <div class="trophy">🏆</div>
       <div class="win-title">${esc(winner)} Wins!</div>
-      <div class="win-sub">Game 501 &middot; Round ${state.round}</div>
+      <div class="win-sub">Game 501 · Round ${state.round}</div>
       <div class="final-scores">${rows}</div>
       <div class="win-actions">
         <button class="btn btn-red" id="rematch-btn"
