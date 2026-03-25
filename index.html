@@ -177,6 +177,10 @@
                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .hist-date   { font-size: 0.7rem; color: #555; margin-top: 0.1rem; }
 
+    .hist-player-list { margin-top: 0.3rem; display: flex; flex-direction: column; gap: 0.12rem; }
+    .hist-player-row  { display: flex; justify-content: space-between; font-size: 0.75rem; color: #aaa; }
+    .hist-player-row .hp-avg { color: #666; margin-left: 0.5rem; white-space: nowrap; }
+
     .del-btn { color: #666; background: #0e0e20; flex-shrink: 0; }
     .del-btn:hover { color: #e94560; background: #1a0010; }
 
@@ -733,6 +737,13 @@ function newGame(players, opts = {}) {
   };
 }
 
+/* ─── Per-player avg round score for a completed game ───────────────────────── */
+function playerAvg(g, i) {
+  const pointsScored    = g.startScore - g.scores[i];
+  const roundsCompleted = i > g.winner ? g.round - 1 : g.round;
+  return roundsCompleted > 0 ? (pointsScored / roundsCompleted).toFixed(1) : '—';
+}
+
 /* ─── Date formatting ────────────────────────────────────────────────────────── */
 function fmtDate(ts) {
   if (!ts) return '';
@@ -919,8 +930,15 @@ function HomeScreen({ history, onNewGame, onResume, onViewGame, onDeleteGame, on
                    onKeyDown={e => e.key === 'Enter' && onViewGame(g)}>
                 <div className="hist-info">
                   <div className="hist-winner">🏆 {g.players[g.winner]}</div>
-                  <div className="hist-meta">{g.players.join(' · ')} · {g.round} {t('rounds')}</div>
-                  <div className="hist-date">{fmtDate(g.finishedAt)}</div>
+                  <div className="hist-player-list">
+                    {g.players.map((name, i) => (
+                      <div key={i} className="hist-player-row">
+                        <span>{name}</span>
+                        <span className="hp-avg">{playerAvg(g, i)} {t('avg')}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="hist-meta">{g.round} {t('rounds')} · {fmtDate(g.finishedAt)}</div>
                 </div>
                 <button className="btn btn-gray btn-icon del-btn"
                         aria-label={t('deleteGame')}
