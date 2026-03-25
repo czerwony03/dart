@@ -545,6 +545,7 @@ function newGame(players) {
     winner:        -1,
     startedAt:     Date.now(),
     finishedAt:    null,
+    stateHistory:  [],
   };
 }
 
@@ -858,7 +859,7 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome }) {
 
         <div className="action-row">
           <button className="btn btn-gray" style={{ flex: 1 }}
-                  disabled={game.darts.length === 0 && !game.isBust}
+                  disabled={game.darts.length === 0 && !game.isBust && !(game.stateHistory && game.stateHistory.length > 0)}
                   onClick={onUndo}>↩ Undo</button>
           <button className="btn btn-red" style={{ flex: 2 }}
                   onClick={onAdvance}>{nextLabel}</button>
@@ -997,7 +998,12 @@ function App() {
     setGame(prev => {
       if (!prev) return prev;
       if (prev.isBust) return { ...prev, isBust: false };
-      if (prev.darts.length === 0) return prev;
+      if (prev.darts.length === 0) {
+        if (!prev.stateHistory || prev.stateHistory.length === 0) return prev;
+        const stateHistory = prev.stateHistory.slice(0, -1);
+        const { stateHistory: _, ...restoredState } = prev.stateHistory[prev.stateHistory.length - 1];
+        return { ...restoredState, stateHistory };
+      }
       const darts = prev.darts.slice(0, -1);
       return { ...prev, darts, turnScore: prev.turnScore - prev.darts[prev.darts.length - 1].score };
     });
@@ -1009,9 +1015,10 @@ function App() {
       const scores = [...prev.scores];
       if (!prev.isBust) scores[prev.currentPlayer] -= prev.turnScore;
       const cp = (prev.currentPlayer + 1) % prev.players.length;
+      const stateHistory = [...(prev.stateHistory || []), { ...prev }];
       return { ...prev, scores, currentPlayer: cp,
                round: cp === 0 ? prev.round + 1 : prev.round,
-               darts: [], turnScore: 0, isBust: false };
+               darts: [], turnScore: 0, isBust: false, stateHistory };
     });
   }, []);
 
