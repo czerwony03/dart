@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>🎯 Dart 501</title>
+  <style>
+    /* ─── Reset & Base ───────────────────────────────────────────────────────── */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #12121e;
+      color: #e8e8e8;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    /* ─── Buttons ────────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.8rem 1.4rem;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      line-height: 1;
+      user-select: none;
+      transition: filter 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .btn:active:not(:disabled) { transform: scale(0.95); }
+    .btn:disabled {
+      opacity: 0.38;
+      cursor: default;
+    }
+
+    .btn-red    { background: #e94560; color: #fff; }
+    .btn-green  { background: #27ae60; color: #fff; }
+    .btn-gray   { background: #2e2e4a; color: #ccc; }
+    .btn-amber  { background: #e67e22; color: #fff; }
+    .btn-icon   { padding: 0.75rem; width: 44px; height: 44px; border-radius: 10px; }
+
+    /* ─── Inputs ─────────────────────────────────────────────────────────────── */
+    input[type="text"],
+    input[type="number"] {
+      padding: 0.8rem 1rem;
+      border: 2px solid #2e2e4a;
+      border-radius: 10px;
+      background: #1c1c30;
+      color: #fff;
+      font-size: 1rem;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus { border-color: #e94560; }
+
+    /* ─── SETUP SCREEN ───────────────────────────────────────────────────────── */
+    #setup-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 2rem 1.5rem;
+      gap: 1.5rem;
+    }
+
+    .setup-emoji { font-size: 5rem; line-height: 1; }
+
+    .setup-title {
+      font-size: 2.4rem;
+      font-weight: 800;
+      color: #e94560;
+      letter-spacing: -0.5px;
+    }
+
+    .setup-subtitle {
+      color: #666;
+      font-size: 0.95rem;
+    }
+
+    .player-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .player-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .player-num {
+      color: #555;
+      font-size: 0.85rem;
+      min-width: 22px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .setup-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    /* ─── GAME SCREEN ────────────────────────────────────────────────────────── */
+    #game-screen {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .game-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 1rem;
+      background: #0e1a35;
+      flex-shrink: 0;
+    }
+
+    .round-badge {
+      background: #e94560;
+      color: #fff;
+      padding: 0.2rem 0.65rem;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .cp-name {
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: #ffd700;
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .dart-counter {
+      font-size: 0.85rem;
+      color: #888;
+    }
+
+    /* Scoreboard */
+    .scoreboard {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      background: #171730;
+      padding: 0.45rem 0.9rem;
+      scrollbar-width: none;
+      flex-shrink: 0;
+    }
+
+    .scoreboard::-webkit-scrollbar { display: none; }
+
+    .score-card {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0.35rem 0.7rem;
+      border-radius: 8px;
+      background: #0e1a35;
+      min-width: 64px;
+      transition: background 0.2s;
+    }
+
+    .score-card.active { background: #e94560; }
+
+    .sc-name {
+      font-size: 0.68rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 72px;
+    }
+
+    .sc-val {
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    /* Dartboard */
+    .dartboard-wrap {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      overflow: hidden;
+    }
+
+    #dartboard {
+      width: 100%;
+      height: 100%;
+      max-width: 340px;
+      max-height: 340px;
+    }
+
+    .dseg {
+      cursor: pointer;
+      transition: opacity 0.1s;
+    }
+
+    .dseg:hover   { opacity: 0.78; }
+    .dseg:active  { opacity: 0.55; }
+
+    /* Bottom panel */
+    .game-bottom {
+      flex-shrink: 0;
+      background: #0b0b1a;
+    }
+
+    /* Throw row */
+    .throw-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.45rem 1rem;
+      background: #171730;
+    }
+
+    .dart-chips {
+      display: flex;
+      gap: 0.4rem;
+      flex: 1;
+    }
+
+    .chip {
+      flex: 1;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 7px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .chip-used  { background: #1d5c36; color: #7effc0; }
+    .chip-miss  { background: #3a2000; color: #ffa040; }
+    .chip-empty { background: #1a1a30; border: 1px dashed #2e2e4e; color: #333; }
+
+    .turn-lbl { font-size: 0.68rem; color: #666; line-height: 1; }
+    .turn-val {
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: #ffd700;
+      min-width: 52px;
+      text-align: right;
+    }
+
+    /* Bust notice */
+    .bust-bar {
+      text-align: center;
+      color: #ff4444;
+      font-weight: 700;
+      font-size: 0.9rem;
+      padding: 0.3rem;
+      background: #1f0000;
+    }
+
+    /* Manual input row */
+    .manual-row {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.45rem 1rem;
+    }
+
+    .manual-row input {
+      min-width: 0;
+    }
+
+    /* Action row */
+    .action-row {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.45rem 1rem 0.65rem;
+    }
+
+    /* ─── WIN SCREEN ─────────────────────────────────────────────────────────── */
+    #win-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 2rem 1.5rem;
+      gap: 1.5rem;
+      text-align: center;
+    }
+
+    .trophy { font-size: 6.5rem; line-height: 1; }
+
+    .win-title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #ffd700;
+    }
+
+    .win-sub { color: #666; font-size: 0.95rem; }
+
+    .final-scores {
+      background: #171730;
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      width: 100%;
+      max-width: 340px;
+    }
+
+    .fs-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.45rem 0;
+      border-bottom: 1px solid #2a2a40;
+      font-size: 0.95rem;
+    }
+
+    .fs-row:last-child { border-bottom: none; }
+    .fs-row.winner-row { color: #ffd700; font-weight: 700; }
+
+    .win-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 340px;
+    }
+
+    /* ─── Toast notification ─────────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    .toast-inner {
+      background: #b81c2e;
+      color: #fff;
+      font-size: 2rem;
+      font-weight: 800;
+      padding: 0.75rem 2rem;
+      border-radius: 14px;
+      opacity: 0;
+      transform: scale(0.75);
+      transition: opacity 0.18s, transform 0.18s;
+    }
+
+    .toast-inner.show {
+      opacity: 1;
+      transform: scale(1);
+    }
+  </style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<div id="toast" aria-live="assertive">
+  <div class="toast-inner" id="toast-inner"></div>
+</div>
+
+<script>
+/* ─── State ──────────────────────────────────────────────────────────────────── */
+const state = {
+  phase: 'setup',       // 'setup' | 'playing' | 'won'
+  players: ['', ''],    // player name strings (2–4)
+  scores: [],           // remaining score per player
+  currentPlayer: 0,
+  round: 1,
+  darts: [],            // current-turn darts: [{score, label, isMiss}]
+  turnScore: 0,
+  isBust: false,
+  winner: -1,
+};
+
+/* Standard dartboard segment order clockwise from top */
+const BOARD = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
+
+/* ─── Utility helpers ────────────────────────────────────────────────────────── */
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast-inner');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 950);
+}
+
+/* ─── Render dispatcher ──────────────────────────────────────────────────────── */
+function render() {
+  const app = document.getElementById('app');
+  if (state.phase === 'setup') {
+    app.innerHTML = renderSetup();
+    bindSetup();
+  } else if (state.phase === 'playing') {
+    app.innerHTML = renderGame();
+    bindGame();
+    buildDartboard();
+  } else {
+    app.innerHTML = renderWin();
+    bindWin();
+  }
+}
+
+/* ─── Setup screen ───────────────────────────────────────────────────────────── */
+function renderSetup() {
+  const rows = state.players.map((n, i) => `
+    <div class="player-row">
+      <span class="player-num">${i + 1}.</span>
+      <input type="text" class="pname" data-i="${i}" value="${esc(n)}"
+        placeholder="Player ${i + 1}" maxlength="20" autocomplete="off"
+        inputmode="text" enterkeyhint="next" />
+      ${state.players.length > 2
+        ? `<button class="btn btn-gray btn-icon del-player" data-i="${i}"
+             aria-label="Remove player ${i + 1}">✕</button>`
+        : ''}
+    </div>`).join('');
+
+  return `
+    <div id="setup-screen">
+      <div class="setup-emoji">🎯</div>
+      <h1 class="setup-title">Dart 501</h1>
+      <p class="setup-subtitle">Enter player names to begin</p>
+      <div class="player-list">${rows}</div>
+      <div class="setup-actions">
+        ${state.players.length < 4
+          ? `<button class="btn btn-gray" id="add-player-btn">＋ Add Player</button>`
+          : ''}
+        <button class="btn btn-red" id="start-btn"
+          style="font-size:1.1rem;padding:1rem">🎯 Start Game</button>
+      </div>
+    </div>`;
+}
+
+function bindSetup() {
+  /* Live-update player names */
+  document.querySelectorAll('.pname').forEach(inp => {
+    inp.addEventListener('input', e => {
+      state.players[+e.target.dataset.i] = e.target.value;
+    });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        const next = document.querySelector(`.pname[data-i="${+e.target.dataset.i + 1}"]`);
+        if (next) next.focus();
+        else document.getElementById('start-btn')?.focus();
+      }
+    });
+  });
+
+  /* Remove player */
+  document.querySelectorAll('.del-player').forEach(btn => {
+    btn.addEventListener('click', e => {
+      state.players.splice(+e.currentTarget.dataset.i, 1);
+      render();
+    });
+  });
+
+  /* Add player */
+  document.getElementById('add-player-btn')?.addEventListener('click', () => {
+    if (state.players.length < 4) { state.players.push(''); render(); }
+  });
+
+  /* Start game */
+  document.getElementById('start-btn').addEventListener('click', () => {
+    const names = state.players.map(n => n.trim()).filter(Boolean);
+    if (names.length < 2) {
+      toast('Need at least 2 players!');
+      return;
+    }
+    state.players    = names;
+    state.scores     = names.map(() => 501);
+    state.currentPlayer = 0;
+    state.round      = 1;
+    state.darts      = [];
+    state.turnScore  = 0;
+    state.isBust     = false;
+    state.phase      = 'playing';
+    render();
+  });
+}
+
+/* ─── Game screen ────────────────────────────────────────────────────────────── */
+function renderGame() {
+  const cp     = state.currentPlayer;
+  const cpName = state.players[cp];
+
+  const cards = state.players.map((name, i) => `
+    <div class="score-card ${i === cp ? 'active' : ''}">
+      <span class="sc-name">${esc(name)}</span>
+      <span class="sc-val">${state.scores[i]}</span>
+    </div>`).join('');
+
+  const chips = [0, 1, 2].map(i => {
+    const d = state.darts[i];
+    if (!d) return `<div class="chip chip-empty">·</div>`;
+    const cls = d.isMiss ? 'chip-miss' : 'chip-used';
+    return `<div class="chip ${cls}">${esc(d.label)}</div>`;
+  }).join('');
+
+  const canUndo = state.darts.length > 0 || state.isBust;
+  const full    = state.darts.length === 3;
+  const nextLbl = (full || state.isBust)
+    ? 'Next Player →'
+    : state.darts.length === 0 ? 'Skip Turn →' : 'Done &amp; Next →';
+
+  return `
+    <div id="game-screen">
+      <div class="game-header">
+        <span class="round-badge">Round ${state.round}</span>
+        <span class="cp-name">${esc(cpName)}</span>
+        <span class="dart-counter">${state.darts.length}/3 🎯</span>
+      </div>
+      <div class="scoreboard">${cards}</div>
+
+      <div class="dartboard-wrap">
+        <svg id="dartboard" viewBox="0 0 360 360" xmlns="http://www.w3.org/2000/svg"
+             role="img" aria-label="Interactive dartboard"></svg>
+      </div>
+
+      <div class="game-bottom">
+        <div class="throw-row">
+          <div class="dart-chips">${chips}</div>
+          <div style="text-align:right">
+            <div class="turn-lbl">TURN</div>
+            <div class="turn-val">${state.turnScore}</div>
+          </div>
+        </div>
+        ${state.isBust ? '<div class="bust-bar">⚠️ BUST — turn score reset</div>' : ''}
+        <div class="manual-row">
+          <input type="number" id="manual-in" min="0" max="60"
+            placeholder="0–60 pts per dart" inputmode="numeric" />
+          <button class="btn btn-amber miss-btn" id="miss-btn"
+            title="Dart missed the board (0 points)" ${state.darts.length >= 3 || state.isBust ? 'disabled' : ''}>Miss</button>
+          <button class="btn btn-green" id="manual-ok"
+            ${state.darts.length >= 3 || state.isBust ? 'disabled' : ''}>Add</button>
+        </div>
+        <div class="action-row">
+          <button class="btn btn-gray" id="undo-btn" ${canUndo ? '' : 'disabled'} style="flex:1">
+            ↩ Undo
+          </button>
+          <button class="btn btn-red" id="next-btn" style="flex:2">${nextLbl}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function bindGame() {
+  document.getElementById('undo-btn')?.addEventListener('click', () => {
+    if (state.isBust) {
+      state.isBust = false;
+    } else if (state.darts.length > 0) {
+      const last = state.darts.pop();
+      state.turnScore -= last.score;
+    }
+    render();
+  });
+
+  document.getElementById('next-btn')?.addEventListener('click', advancePlayer);
+
+  document.getElementById('miss-btn')?.addEventListener('click', () => dartHit(0, 'Miss', true));
+
+  document.getElementById('manual-ok')?.addEventListener('click', submitManual);
+
+  document.getElementById('manual-in')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitManual();
+  });
+}
+
+function submitManual() {
+  const inp = document.getElementById('manual-in');
+  if (!inp) return;
+  const v = parseInt(inp.value, 10);
+  if (isNaN(v) || v < 0 || v > 60) {
+    inp.style.borderColor = '#e94560';
+    inp.focus();
+    setTimeout(() => { inp.style.borderColor = ''; }, 700);
+    return;
+  }
+  dartHit(v, String(v), false);
+  inp.value = '';
+  inp.focus();
+}
+
+/* ─── Dartboard SVG builder ──────────────────────────────────────────────────── */
+function pol2xy(cx, cy, r, deg) {
+  const rad = (deg - 90) * Math.PI / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function ringArc(cx, cy, rIn, rOut, a1, a2) {
+  const p1 = pol2xy(cx, cy, rOut, a1);
+  const p2 = pol2xy(cx, cy, rOut, a2);
+  const p3 = pol2xy(cx, cy, rIn,  a2);
+  const p4 = pol2xy(cx, cy, rIn,  a1);
+  const lg = (a2 - a1) > 180 ? 1 : 0;
+  const f  = v => v.toFixed(2);
+  return [
+    `M ${f(p1.x)} ${f(p1.y)}`,
+    `A ${rOut} ${rOut} 0 ${lg} 1 ${f(p2.x)} ${f(p2.y)}`,
+    `L ${f(p3.x)} ${f(p3.y)}`,
+    `A ${rIn}  ${rIn}  0 ${lg} 0 ${f(p4.x)} ${f(p4.y)}`,
+    'Z',
+  ].join(' ');
+}
+
+function buildDartboard() {
+  const svg = document.getElementById('dartboard');
+  if (!svg) return;
+
+  const cx = 180, cy = 180;
+
+  /* Radii (px in 360×360 viewBox) */
+  const R_BOARD  = 175;  // outer edge (board circle)
+  const R_NUM    = 164;  // centre of number labels
+  const R_DBL_O  = 155;  // double ring outer
+  const R_DBL_I  = 141;  // double ring inner
+  const R_TPL_O  =  97;  // triple ring outer
+  const R_TPL_I  =  84;  // triple ring inner
+  const R_BULL_O =  26;  // outer bull (25 pts)
+  const R_BULL_I =  12;  // inner bull / bull's-eye (50 pts)
+
+  const DEG = 360 / 20;  // 18° per segment
+
+  let h = '';
+
+  /* Dark board background */
+  h += `<circle cx="${cx}" cy="${cy}" r="${R_BOARD}" fill="#111" stroke="#444" stroke-width="1.5"/>`;
+
+  BOARD.forEach((num, i) => {
+    const a1 = i * DEG - DEG / 2;
+    const a2 = a1 + DEG;
+
+    /* Alternate cream/dark base, red/green ring colours */
+    const light    = i % 2 === 0;
+    const baseClr  = light ? '#f0d9a8' : '#1e1e1e';
+    const ringClr  = light ? '#c0392b' : '#27ae60';
+
+    /* Single outer (between triple and double) */
+    h += `<path class="dseg" d="${ringArc(cx,cy,R_TPL_O,R_DBL_I,a1,a2)}"
+      fill="${baseClr}" data-score="${num}" data-label="${num}"
+      aria-label="${num} single"/>`;
+
+    /* Single inner (between outer bull and triple) */
+    h += `<path class="dseg" d="${ringArc(cx,cy,R_BULL_O,R_TPL_I,a1,a2)}"
+      fill="${baseClr}" data-score="${num}" data-label="${num}"
+      aria-label="${num} single"/>`;
+
+    /* Triple ring */
+    h += `<path class="dseg" d="${ringArc(cx,cy,R_TPL_I,R_TPL_O,a1,a2)}"
+      fill="${ringClr}" data-score="${num * 3}" data-label="T${num}"
+      aria-label="Triple ${num}"/>`;
+
+    /* Double ring */
+    h += `<path class="dseg" d="${ringArc(cx,cy,R_DBL_I,R_DBL_O,a1,a2)}"
+      fill="${ringClr}" data-score="${num * 2}" data-label="D${num}"
+      aria-label="Double ${num}"/>`;
+
+    /* Segment number label */
+    const lp = pol2xy(cx, cy, R_NUM, i * DEG);
+    h += `<text x="${lp.x.toFixed(1)}" y="${lp.y.toFixed(1)}"
+      text-anchor="middle" dominant-baseline="middle"
+      fill="#fff" font-size="13" font-weight="700"
+      pointer-events="none">${num}</text>`;
+  });
+
+  /* Outer bull – 25 pts */
+  h += `<circle class="dseg" cx="${cx}" cy="${cy}" r="${R_BULL_O}"
+    fill="#27ae60" data-score="25" data-label="Bull" aria-label="Outer bull 25"/>`;
+
+  /* Inner bull / bull's-eye – 50 pts */
+  h += `<circle class="dseg" cx="${cx}" cy="${cy}" r="${R_BULL_I}"
+    fill="#c0392b" data-score="50" data-label="BULL" aria-label="Bull's eye 50"/>`;
+
+  /* Wire circle around double ring */
+  h += `<circle cx="${cx}" cy="${cy}" r="${R_DBL_O}" fill="none" stroke="#222" stroke-width="1.5"/>`;
+
+  svg.innerHTML = h;
+
+  /* Click handlers */
+  svg.querySelectorAll('.dseg').forEach(el => {
+    el.addEventListener('click', () => {
+      const score = parseInt(el.dataset.score, 10);
+      const label = el.dataset.label;
+      dartHit(score, label, false);
+    });
+  });
+}
+
+/* ─── Game logic ─────────────────────────────────────────────────────────────── */
+function dartHit(score, label, isMiss) {
+  if (state.darts.length >= 3 || state.isBust) return;
+
+  const remaining = state.scores[state.currentPlayer] - state.turnScore - score;
+
+  if (remaining < 0) {
+    /* Bust — score would go below zero */
+    state.isBust = true;
+    toast('BUST!');
+    render();
+    return;
+  }
+
+  state.darts.push({ score, label, isMiss });
+  state.turnScore += score;
+
+  if (remaining === 0) {
+    /* WIN */
+    state.scores[state.currentPlayer] = 0;
+    state.winner = state.currentPlayer;
+    state.phase  = 'won';
+    render();
+    return;
+  }
+
+  render();
+}
+
+function advancePlayer() {
+  /* Apply turn score only if no bust */
+  if (!state.isBust) {
+    state.scores[state.currentPlayer] -= state.turnScore;
+  }
+
+  state.turnScore  = 0;
+  state.darts      = [];
+  state.isBust     = false;
+
+  /* Move to next player; increment round when cycling back to player 0 */
+  state.currentPlayer = (state.currentPlayer + 1) % state.players.length;
+  if (state.currentPlayer === 0) state.round++;
+
+  render();
+}
+
+/* ─── Win screen ─────────────────────────────────────────────────────────────── */
+function renderWin() {
+  const winner = state.players[state.winner];
+
+  const rows = state.players.map((name, i) => `
+    <div class="fs-row ${i === state.winner ? 'winner-row' : ''}">
+      <span>${esc(name)} ${i === state.winner ? '🏆' : ''}</span>
+      <span>${state.scores[i]}</span>
+    </div>`).join('');
+
+  return `
+    <div id="win-screen">
+      <div class="trophy">🏆</div>
+      <div class="win-title">${esc(winner)} Wins!</div>
+      <div class="win-sub">Game 501 &middot; Round ${state.round}</div>
+      <div class="final-scores">${rows}</div>
+      <div class="win-actions">
+        <button class="btn btn-red" id="rematch-btn"
+          style="font-size:1.1rem;padding:1rem">🔄 Rematch (same players)</button>
+        <button class="btn btn-gray" id="new-players-btn"
+          style="padding:0.9rem">👥 Change Players</button>
+      </div>
+    </div>`;
+}
+
+function bindWin() {
+  document.getElementById('rematch-btn')?.addEventListener('click', () => {
+    state.scores        = state.players.map(() => 501);
+    state.currentPlayer = 0;
+    state.round         = 1;
+    state.darts         = [];
+    state.turnScore     = 0;
+    state.isBust        = false;
+    state.winner        = -1;
+    state.phase         = 'playing';
+    render();
+  });
+
+  document.getElementById('new-players-btn')?.addEventListener('click', () => {
+    state.players = ['', ''];
+    state.phase   = 'setup';
+    render();
+  });
+}
+
+/* ─── Boot ───────────────────────────────────────────────────────────────────── */
+render();
+</script>
+</body>
+</html>
