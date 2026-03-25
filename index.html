@@ -526,7 +526,10 @@ function pushToHistory(game) {
 }
 
 /* ─── Game factory ───────────────────────────────────────────────────────────── */
-function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function genId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
 
 function newGame(players) {
   return {
@@ -603,9 +606,9 @@ const Dartboard = memo(function Dartboard({ onHit }) {
       const lp    = pts(R.NUM, i * DEG);
       data.push(
         { type: 'path', key: `si${num}`, d: arc(R.TPL_O, R.DBL_I, a1, a2), fill: bc, score: num,     label: String(num) },
-        { type: 'path', key: `so${num}`, d: arc(R.BULL_O,R.TPL_I, a1, a2), fill: bc, score: num,     label: String(num) },
-        { type: 'path', key: `t${num}`,  d: arc(R.TPL_I, R.TPL_O, a1, a2), fill: rc, score: num * 3, label: `T${num}`   },
-        { type: 'path', key: `d${num}`,  d: arc(R.DBL_I, R.DBL_O, a1, a2), fill: rc, score: num * 2, label: `D${num}`   },
+        { type: 'path', key: `so${num}`, d: arc(R.BULL_O, R.TPL_I, a1, a2), fill: bc, score: num,     label: String(num) },
+        { type: 'path', key: `t${num}`,  d: arc(R.TPL_I, R.TPL_O, a1, a2), fill: rc, score: num * 3, label: `T${num}` },
+        { type: 'path', key: `d${num}`,  d: arc(R.DBL_I, R.DBL_O, a1, a2), fill: rc, score: num * 2, label: `D${num}` },
         { type: 'text', key: `n${num}`,  x: lp.x.toFixed(1), y: lp.y.toFixed(1), label: String(num) },
       );
     });
