@@ -500,6 +500,61 @@
 
     .lang-btn.lang-active { background: #e94560; color: #fff; }
 
+    /* ─── Finish-mode toggle (setup screen) ─────────────────────────────────── */
+    .finish-toggle-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .finish-toggle-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .finish-toggle {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .finish-btn {
+      flex: 1;
+      padding: 0.6rem 0.5rem;
+      border: 2px solid #2e2e4a;
+      border-radius: 10px;
+      background: #1c1c30;
+      color: #888;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      text-align: center;
+    }
+
+    .finish-btn.finish-active {
+      border-color: #e94560;
+      background: #2a0a14;
+      color: #e94560;
+    }
+
+    /* ─── Checkout hints (game screen) ──────────────────────────────────────── */
+    .checkout-hint {
+      flex: 1;
+      text-align: center;
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: #ffd700;
+      opacity: 0.85;
+      min-height: 14px;
+      line-height: 14px;
+      pointer-events: none;
+    }
+
     /* ─── Toast ──────────────────────────────────────────────────────────────── */
     .toast-overlay {
       position: fixed;
@@ -579,6 +634,9 @@ const TRANSLATIONS = {
     removePlayer:     'Remove player',
     goHome:           'Go home',
     dartboardLabel:   'Interactive dartboard',
+    finishMode:       'Finish',
+    singleOut:        'Single Out',
+    doubleOut:        'Double Out',
   },
   pl: {
     inProgress:       'W trakcie',
@@ -619,6 +677,9 @@ const TRANSLATIONS = {
     removePlayer:     'Usuń gracza',
     goHome:           'Wróć do menu',
     dartboardLabel:   'Interaktywna tarcza do darta',
+    finishMode:       'Zakończenie',
+    singleOut:        'Single Out',
+    doubleOut:        'Double Out',
   },
 };
 
