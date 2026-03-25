@@ -500,6 +500,61 @@
 
     .lang-btn.lang-active { background: #e94560; color: #fff; }
 
+    /* ─── Finish-mode toggle (setup screen) ─────────────────────────────────── */
+    .finish-toggle-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .finish-toggle-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .finish-toggle {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .finish-btn {
+      flex: 1;
+      padding: 0.6rem 0.5rem;
+      border: 2px solid #2e2e4a;
+      border-radius: 10px;
+      background: #1c1c30;
+      color: #888;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      text-align: center;
+    }
+
+    .finish-btn.finish-active {
+      border-color: #e94560;
+      background: #2a0a14;
+      color: #e94560;
+    }
+
+    /* ─── Checkout hints (game screen) ──────────────────────────────────────── */
+    .checkout-hint {
+      flex: 1;
+      text-align: center;
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: #ffd700;
+      opacity: 0.85;
+      min-height: 14px;
+      line-height: 14px;
+      pointer-events: none;
+    }
+
     /* ─── Toast ──────────────────────────────────────────────────────────────── */
     .toast-overlay {
       position: fixed;
@@ -579,6 +634,11 @@ const TRANSLATIONS = {
     removePlayer:     'Remove player',
     goHome:           'Go home',
     dartboardLabel:   'Interactive dartboard',
+    startScore:       'Starting Score',
+    finishMode:       'Finish',
+    singleOut:        'Single Out',
+    doubleOut:        'Double Out',
+    game:             'Game',
   },
   pl: {
     inProgress:       'W trakcie',
@@ -619,6 +679,11 @@ const TRANSLATIONS = {
     removePlayer:     'Usuń gracza',
     goHome:           'Wróć do menu',
     dartboardLabel:   'Interaktywna tarcza do darta',
+    startScore:       'Wynik startowy',
+    finishMode:       'Zakończenie',
+    singleOut:        'Single Out',
+    doubleOut:        'Double Out',
+    game:             'Gra',
   },
 };
 
@@ -646,12 +711,16 @@ function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
-function newGame(players) {
+function newGame(players, opts = {}) {
+  const startScore = opts.startScore || 501;
+  const finishMode = opts.finishMode || 'double';
   return {
     id:            genId(),
     phase:         'playing',
     players,
-    scores:        players.map(() => 501),
+    startScore,
+    finishMode,
+    scores:        players.map(() => startScore),
     currentPlayer: 0,
     round:         1,
     darts:         [],
@@ -755,6 +824,48 @@ const Dartboard = memo(function Dartboard({ onHit }) {
   );
 });
 
+/* ─── Checkout calculator ────────────────────────────────────────────────────── */
+function getCheckout(score, maxDarts) {
+  if (score < 2 || score > 170 || maxDarts < 1) return null;
+
+  // All valid finishing doubles: value → label
+  const doubleLabel = {};
+  for (let i = 1; i <= 20; i++) doubleLabel[i * 2] = `D${i}`;
+  doubleLabel[50] = 'BULL';
+
+  // 1-dart checkout
+  if (doubleLabel[score]) return [doubleLabel[score]];
+  if (maxDarts === 1) return null;
+
+  // All scoreable darts ordered high→low (greedy preference for big scores)
+  const all = [];
+  for (let i = 20; i >= 1; i--) {
+    all.push({ score: i * 3, label: `T${i}` });
+    all.push({ score: i * 2, label: `D${i}` });
+    all.push({ score: i,     label: String(i) });
+  }
+  all.push({ score: 50, label: 'BULL' });
+  all.push({ score: 25, label: 'Bull' });
+
+  // 2-dart checkout
+  for (const d1 of all) {
+    const need = score - d1.score;
+    if (need >= 2 && doubleLabel[need]) return [d1.label, doubleLabel[need]];
+  }
+  if (maxDarts === 2) return null;
+
+  // 3-dart checkout
+  for (const d1 of all) {
+    const rem1 = score - d1.score;
+    if (rem1 < 2) continue;
+    for (const d2 of all) {
+      const need = rem1 - d2.score;
+      if (need >= 2 && doubleLabel[need]) return [d1.label, d2.label, doubleLabel[need]];
+    }
+  }
+  return null;
+}
+
 /* ─── HomeScreen ─────────────────────────────────────────────────────────────── */
 function HomeScreen({ history, onNewGame, onResume, onViewGame, onDeleteGame, onClearHistory }) {
   const { t, lang, setLang } = useLang();
@@ -830,8 +941,10 @@ function HomeScreen({ history, onNewGame, onResume, onViewGame, onDeleteGame, on
 /* ─── SetupScreen ────────────────────────────────────────────────────────────── */
 function SetupScreen({ onStart, onBack }) {
   const { t } = useLang();
-  const [players, setPlayers] = useState(['', '']);
-  const [error,   setError]   = useState('');
+  const [players,    setPlayers]    = useState(['', '']);
+  const [startScore, setStartScore] = useState(501);
+  const [finishMode, setFinishMode] = useState('double');
+  const [error,      setError]      = useState('');
 
   const updateName = (i, val) => setPlayers(prev => { const p = [...prev]; p[i] = val; return p; });
   const addPlayer  = ()       => { if (players.length < 4) setPlayers(p => [...p, '']); };
@@ -841,7 +954,7 @@ function SetupScreen({ onStart, onBack }) {
     const names = players.map(n => n.trim()).filter(Boolean);
     if (names.length < 2) { setError(t('minPlayers')); return; }
     setError('');
-    onStart(names);
+    onStart(names, { startScore, finishMode });
   };
 
   const handleKey = (i, e) => {
@@ -882,6 +995,27 @@ function SetupScreen({ onStart, onBack }) {
         ))}
       </div>
 
+      <div className="finish-toggle-row">
+        <span className="finish-toggle-label">{t('startScore')}</span>
+        <div className="finish-toggle">
+          {[501, 301].map(s => (
+            <button key={s}
+                    className={`finish-btn${startScore === s ? ' finish-active' : ''}`}
+                    onClick={() => setStartScore(s)}>{s}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="finish-toggle-row">
+        <span className="finish-toggle-label">{t('finishMode')}</span>
+        <div className="finish-toggle">
+          <button className={`finish-btn${finishMode === 'single' ? ' finish-active' : ''}`}
+                  onClick={() => setFinishMode('single')}>{t('singleOut')}</button>
+          <button className={`finish-btn${finishMode === 'double' ? ' finish-active' : ''}`}
+                  onClick={() => setFinishMode('double')}>{t('doubleOut')}</button>
+        </div>
+      </div>
+
       <div className="setup-actions">
         {players.length < 4 && (
           <button className="btn btn-gray" onClick={addPlayer}>{t('addPlayer')}</button>
@@ -909,6 +1043,13 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome }) {
     ? t('nextPlayer')
     : game.darts.length === 0 ? t('skipTurn') : t('doneNext');
 
+  // Checkout hints (double-out mode only)
+  const remaining = game.scores[cp] - game.turnScore;
+  const dartsLeft = 3 - game.darts.length;
+  const checkout  = (!game.isBust && game.finishMode === 'double' && dartsLeft > 0)
+    ? getCheckout(remaining, dartsLeft)
+    : null;
+
   const submitManual = () => {
     const v = parseInt(manualVal, 10);
     if (isNaN(v) || v < 0 || v > 60) {
@@ -935,7 +1076,7 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome }) {
       <div className="scoreboard">
         {game.players.map((name, i) => {
           const roundsCompleted = i < cp ? game.round : game.round - 1;
-          const pointsScored    = 501 - game.scores[i];
+          const pointsScored    = game.startScore - game.scores[i];
           const avg             = roundsCompleted > 0 ? (pointsScored / roundsCompleted).toFixed(1) : '—';
           return (
             <div key={i} className={`score-card${i === cp ? ' active' : ''}`}>
@@ -953,12 +1094,23 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome }) {
 
       <div className="game-bottom">
         <div className="throw-row">
-          <div className="dart-chips">
-            {[0, 1, 2].map(i => {
-              const d = game.darts[i];
-              if (!d) return <div key={i} className="chip chip-empty">·</div>;
-              return <div key={i} className={`chip ${d.isMiss ? 'chip-miss' : 'chip-used'}`}>{d.label}</div>;
-            })}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {checkout && (
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                {[0, 1, 2].map(i => {
+                  const hintIdx = i - game.darts.length;
+                  const hint = (hintIdx >= 0 && hintIdx < checkout.length) ? checkout[hintIdx] : null;
+                  return <div key={i} className="checkout-hint">{hint || ''}</div>;
+                })}
+              </div>
+            )}
+            <div className="dart-chips">
+              {[0, 1, 2].map(i => {
+                const d = game.darts[i];
+                if (!d) return <div key={i} className="chip chip-empty">·</div>;
+                return <div key={i} className={`chip ${d.isMiss ? 'chip-miss' : 'chip-used'}`}>{d.label}</div>;
+              })}
+            </div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div className="turn-lbl">{t('turn')}</div>
@@ -1009,7 +1161,7 @@ function WinScreen({ game, onRematch, onNewGame, onHome, readOnly = false }) {
       )}
       <div className="trophy">🏆</div>
       <div className="win-title">{game.players[game.winner]} {t('wins')}</div>
-      <div className="win-sub">{t('game501Round')} {game.round}</div>
+      <div className="win-sub">{t('game')} {game.startScore} · {t('round')} {game.round}</div>
       {game.finishedAt && <div className="win-date">{fmtDate(game.finishedAt)}</div>}
 
       <div className="final-scores">
@@ -1093,8 +1245,8 @@ function App() {
     setScreen('setup');
   }, [t]);
 
-  const handleStart = useCallback(players => {
-    setGame(newGame(players));
+  const handleStart = useCallback((players, opts) => {
+    setGame(newGame(players, opts));
     setScreen('game');
   }, []);
 
@@ -1126,6 +1278,9 @@ function App() {
       const darts     = [...prev.darts, { score, label, isMiss }];
       const turnScore = prev.turnScore + score;
       if (remaining === 0) {
+        // Double-out: last dart must be a double (D1–D20 or BULL)
+        const isDouble = label.startsWith('D') || label === 'BULL';
+        if (prev.finishMode === 'double' && !isDouble) return { ...prev, isBust: true };
         const scores = [...prev.scores];
         scores[prev.currentPlayer] = 0;
         return { ...prev, darts, turnScore, scores,
@@ -1165,7 +1320,7 @@ function App() {
 
   const rematch = useCallback(() => {
     if (!game) return;
-    setGame(newGame(game.players));
+    setGame(newGame(game.players, { startScore: game.startScore, finishMode: game.finishMode }));
     setScreen('game');
   }, [game]);
 
