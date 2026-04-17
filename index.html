@@ -6,6 +6,7 @@
   <title>🎯 Dart 501</title>
   <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://browser.sentry-cdn.com/8.36.0/bundle.min.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@babel/standalone@7.25.9/babel.min.js"></script>
   <style>
     /* ─── Reset & Base ───────────────────────────────────────────────────────── */
@@ -589,6 +590,38 @@
 <div id="root"></div>
 
 <script type="text/babel">
+const sentry = window.Sentry;
+if (sentry) {
+  sentry.init({
+    dsn: 'https://9a68ba7c3e7a123929063f6bec63c34c@o4509889334083584.ingest.de.sentry.io/4511236468113488',
+    sendDefaultPii: true
+  });
+
+  const toMessage = (args) => args.map((arg) => {
+    if (arg instanceof Error) return arg.stack || arg.message;
+    if (typeof arg === 'string') return arg;
+    try { return JSON.stringify(arg); } catch (_) { return String(arg); }
+  }).join(' ');
+
+  const rawConsoleWarn = console.warn;
+  const rawConsoleError = console.error;
+
+  console.warn = (...args) => {
+    sentry.captureMessage(toMessage(args), 'warning');
+    rawConsoleWarn.apply(console, args);
+  };
+
+  console.error = (...args) => {
+    if (args[0] instanceof Error) {
+      sentry.captureException(args[0]);
+    } else {
+      sentry.captureMessage(toMessage(args), 'error');
+    }
+    rawConsoleError.apply(console, args);
+  };
+
+}
+
 const { useState, useEffect, useCallback, useRef, useMemo, memo } = React;
 
 /* ─── Constants ──────────────────────────────────────────────────────────────── */
