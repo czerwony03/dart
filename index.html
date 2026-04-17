@@ -430,11 +430,25 @@
     .chip-empty { background: #1a1a30; border: 1px dashed #2e2e4e; color: #333; }
 
     .turn-lbl { font-size: 0.65rem; color: #666; line-height: 1; }
+    .turn-score {
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      gap: 0.35rem;
+    }
     .turn-val {
       font-size: 1.6rem;
       font-weight: 700;
       color: #ffd700;
       min-width: 50px;
+      text-align: right;
+    }
+    .turn-left {
+      font-size: 0.72rem;
+      line-height: 1;
+      color: rgba(255, 255, 255, 0.62);
+      margin-bottom: 0.2rem;
+      min-width: 2.4rem;
       text-align: right;
     }
 
@@ -1543,7 +1557,10 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
           </div>
           <div style={{ textAlign: 'right' }}>
             <div className="turn-lbl">{t('turn')}</div>
-            <div className="turn-val">{game.turnScore}</div>
+            <div className="turn-score">
+              <div className="turn-val">{game.turnScore}</div>
+              <div className="turn-left">{remaining}</div>
+            </div>
           </div>
         </div>
 
