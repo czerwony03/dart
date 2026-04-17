@@ -1087,8 +1087,8 @@ function Toast({ msg }) {
 const Dartboard = memo(function Dartboard({ onHit }) {
   const { t } = useLang();
   const CX = 180, CY = 180, DEG = 18;
-  const R  = { BOARD: 175, NUM: 164, DBL_O: 155, DBL_I: 141,
-               TPL_O: 97,  TPL_I: 84, BULL_O: 26, BULL_I: 12 };
+  const R  = { BOARD: 175, NUM: 164, DBL_O: 155, DBL_I: 140,
+               TPL_O: 98,  TPL_I: 83, BULL_O: 26, BULL_I: 12 };
 
   /* Stable geometry — computed once regardless of onHit reference */
   const segData = useMemo(() => {
