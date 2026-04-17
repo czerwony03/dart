@@ -1132,10 +1132,33 @@ const Dartboard = memo(function Dartboard({ onHit }) {
 });
 
 /* ─── Checkout calculator ────────────────────────────────────────────────────── */
+
+// All scoreable darts ordered high→low (greedy preference for big scores)
+const ALL_DART_THROWS = (() => {
+  const darts = [];
+  for (let i = 20; i >= 1; i--) {
+    darts.push({ score: i * 3, label: `T${i}` });
+    darts.push({ score: i * 2, label: `D${i}` });
+    darts.push({ score: i,     label: String(i) });
+  }
+  darts.push({ score: 50, label: 'BULL' });
+  darts.push({ score: 25, label: 'Bull' });
+  return darts;
+})();
+
+// Map from dart score → preferred label (triple > double > single, high → low)
+const DART_SCORE_TO_LABEL = (() => {
+  const map = new Map();
+  for (const d of ALL_DART_THROWS) {
+    if (!map.has(d.score)) map.set(d.score, d.label);
+  }
+  return map;
+})();
+
+// Double-out: last dart must be a double (D1–D20 or double bull)
 function getCheckout(score, maxDarts) {
   if (score < 2 || score > 170 || maxDarts < 1) return null;
 
-  // All valid finishing doubles: value → label
   const doubleLabel = {};
   for (let i = 1; i <= 20; i++) doubleLabel[i * 2] = `D${i}`;
   doubleLabel[50] = 'BULL';
@@ -1144,32 +1167,58 @@ function getCheckout(score, maxDarts) {
   if (doubleLabel[score]) return [doubleLabel[score]];
   if (maxDarts === 1) return null;
 
-  // All scoreable darts ordered high→low (greedy preference for big scores)
-  const all = [];
-  for (let i = 20; i >= 1; i--) {
-    all.push({ score: i * 3, label: `T${i}` });
-    all.push({ score: i * 2, label: `D${i}` });
-    all.push({ score: i,     label: String(i) });
-  }
-  all.push({ score: 50, label: 'BULL' });
-  all.push({ score: 25, label: 'Bull' });
-
   // 2-dart checkout
-  for (const d1 of all) {
+  for (const d1 of ALL_DART_THROWS) {
     const need = score - d1.score;
     if (need >= 2 && doubleLabel[need]) return [d1.label, doubleLabel[need]];
   }
   if (maxDarts === 2) return null;
 
   // 3-dart checkout
-  for (const d1 of all) {
+  for (const d1 of ALL_DART_THROWS) {
     const rem1 = score - d1.score;
     if (rem1 < 2) continue;
-    for (const d2 of all) {
+    for (const d2 of ALL_DART_THROWS) {
       const need = rem1 - d2.score;
       if (need >= 2 && doubleLabel[need]) return [d1.label, d2.label, doubleLabel[need]];
     }
   }
+  return null;
+}
+
+// Single-out: last dart can be any valid dart value
+function getCheckoutSingle(score, maxDarts) {
+  if (score < 1 || maxDarts < 1) return null;
+  if (maxDarts === 1 && score > 60)  return null; // max single dart: T20 = 60
+  if (maxDarts === 2 && score > 120) return null; // max two darts:   T20+T20 = 120
+  if (score > 180) return null;                   // max three darts: T20+T20+T20 = 180
+
+  // 1-dart checkout
+  if (DART_SCORE_TO_LABEL.has(score)) return [DART_SCORE_TO_LABEL.get(score)];
+  if (maxDarts === 1) return null;
+
+  // 2-dart checkout
+  for (const d1 of ALL_DART_THROWS) {
+    const need = score - d1.score;
+    if (need >= 1 && DART_SCORE_TO_LABEL.has(need)) return [d1.label, DART_SCORE_TO_LABEL.get(need)];
+  }
+  if (maxDarts === 2) return null;
+
+  // 3-dart checkout
+  for (const d1 of ALL_DART_THROWS) {
+    const rem1 = score - d1.score;
+    if (rem1 < 1) continue;
+    for (const d2 of ALL_DART_THROWS) {
+      const need = rem1 - d2.score;
+      if (need >= 1 && DART_SCORE_TO_LABEL.has(need)) return [d1.label, d2.label, DART_SCORE_TO_LABEL.get(need)];
+    }
+  }
+  return null;
+}
+
+function calculateCheckout(remaining, dartsLeft, finishMode) {
+  if (finishMode === 'double') return getCheckout(remaining, dartsLeft);
+  if (finishMode === 'single') return getCheckoutSingle(remaining, dartsLeft);
   return null;
 }
 
@@ -1373,12 +1422,12 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
     ? t('nextPlayer')
     : game.darts.length === 0 ? t('skipTurn') : t('doneNext');
 
-  // Checkout hints (double-out mode only)
+  // Checkout hints
   const finishMode = normalizeFinishMode(game.finishMode);
   const remaining = game.scores[cp] - game.turnScore;
   const dartsLeft = 3 - game.darts.length;
-  const checkout  = (!game.isBust && finishMode === 'double' && dartsLeft > 0)
-    ? getCheckout(remaining, dartsLeft)
+  const checkout  = (!game.isBust && dartsLeft > 0)
+    ? calculateCheckout(remaining, dartsLeft, finishMode)
     : null;
 
   const turnHistoryByPlayer = useMemo(() => {
