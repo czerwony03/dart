@@ -1222,6 +1222,18 @@ function calculateCheckout(remaining, dartsLeft, finishMode) {
   return null;
 }
 
+function calculateCheckoutHints(remaining, dartsLeft, finishMode) {
+  const direct = calculateCheckout(remaining, dartsLeft, finishMode);
+  if (direct) return direct;
+
+  if (dartsLeft < 3) {
+    const threeDartRoute = calculateCheckout(remaining, 3, finishMode);
+    if (threeDartRoute) return threeDartRoute.slice(0, dartsLeft);
+  }
+
+  return null;
+}
+
 /* ─── HomeScreen ─────────────────────────────────────────────────────────────── */
 function HomeScreen({ history, onNewGame, onResume, onViewGame, onDeleteGame, onClearHistory }) {
   const { t, lang, setLang } = useLang();
@@ -1427,7 +1439,7 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
   const remaining = game.scores[cp] - game.turnScore;
   const dartsLeft = 3 - game.darts.length;
   const checkout  = (!game.isBust && dartsLeft > 0)
-    ? calculateCheckout(remaining, dartsLeft, finishMode)
+    ? calculateCheckoutHints(remaining, dartsLeft, finishMode)
     : null;
 
   const turnHistoryByPlayer = useMemo(() => {
