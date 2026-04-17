@@ -1321,7 +1321,16 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
       if (grouped[turn.player]) grouped[turn.player].push(turn);
     });
     return grouped;
-  }, [game]);
+  }, [
+    game.stateHistory,
+    game.phase,
+    game.darts,
+    game.isBust,
+    game.currentPlayer,
+    game.round,
+    game.turnScore,
+    game.players,
+  ]);
 
   const submitManual = () => {
     const v = parseInt(manualVal, 10);
@@ -1343,6 +1352,7 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
         <div className="header-right">
           <span className="dart-counter">{game.darts.length}/3 🎯</span>
           <button className="btn btn-icon history-icon"
+                  type="button"
                   onClick={() => setHistoryModal('all')}
                   aria-label={t('viewAllHistory')}>☰</button>
           <button className="btn btn-icon share-icon" onClick={onShare} aria-label={t('shareGame')}>⎋</button>
@@ -1357,6 +1367,7 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
           const avg             = roundsCompleted > 0 ? (pointsScored / roundsCompleted).toFixed(1) : '—';
           return (
             <button key={i}
+                    type="button"
                     className={`score-card score-card-btn${i === cp ? ' active' : ''}`}
                     onClick={() => setHistoryModal(i)}
                     aria-label={`${t('playerHistory')}: ${name}`}>
