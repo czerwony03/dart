@@ -1370,7 +1370,7 @@ function App() {
     if (!urlId) return;
     try {
       const params = new URLSearchParams(window.location.search);
-      const isNormalized = params.size === 1 && params.getAll(GAME_ID_PARAM).length === 1;
+      const isNormalized = params.size === 1 && params.has(GAME_ID_PARAM) && params.getAll(GAME_ID_PARAM).length === 1;
       if (!isNormalized) setGameUrlParam(urlId);
     } catch { /* noop */ }
     const local = readActive();
