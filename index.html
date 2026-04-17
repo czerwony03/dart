@@ -730,7 +730,14 @@ function useLang() { return React.useContext(LangContext); }
 
 /* ─── localStorage helpers ───────────────────────────────────────────────────── */
 const readActive   = () => { try { return JSON.parse(localStorage.getItem(LS_ACTIVE))  || null; } catch { return null; } };
-const writeActive  = g  => localStorage.setItem(LS_ACTIVE, JSON.stringify(g));
+const writeActive  = g  => {
+  try {
+    const { stateHistory: _stateHistory, ...persisted } = g || {};
+    localStorage.setItem(LS_ACTIVE, JSON.stringify(persisted));
+  } catch {
+    /* private mode / quota exceeded — silently ignore autosave */
+  }
+};
 const clearActive  = () => localStorage.removeItem(LS_ACTIVE);
 const readHistory  = () => { try { return JSON.parse(localStorage.getItem(LS_HISTORY)) || [];   } catch { return []; }   };
 const writeHistory = h  => localStorage.setItem(LS_HISTORY, JSON.stringify(h));
@@ -1362,7 +1369,8 @@ function App() {
       const scores = [...prev.scores];
       if (!prev.isBust) scores[prev.currentPlayer] -= prev.turnScore;
       const cp = (prev.currentPlayer + 1) % prev.players.length;
-      const stateHistory = [...(prev.stateHistory || []), { ...prev }];
+      const { stateHistory: _stateHistory, ...snapshot } = prev;
+      const stateHistory = [...(prev.stateHistory || []), snapshot];
       return { ...prev, scores, currentPlayer: cp,
                round: cp === 0 ? prev.round + 1 : prev.round,
                darts: [], turnScore: 0, isBust: false, stateHistory };
