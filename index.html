@@ -620,13 +620,6 @@ if (sentry) {
     rawConsoleError.apply(console, args);
   };
 
-  window.addEventListener('unhandledrejection', (event) => {
-    if (event.reason instanceof Error) {
-      sentry.captureException(event.reason);
-      return;
-    }
-    sentry.captureMessage(`Unhandled promise rejection: ${toMessage([event.reason])}`, 'error');
-  });
 }
 
 const { useState, useEffect, useCallback, useRef, useMemo, memo } = React;
