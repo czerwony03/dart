@@ -899,7 +899,7 @@ const Dartboard = memo(function Dartboard({ onHit }) {
     BOARD.forEach((num, i) => {
       const a1 = i * DEG - DEG / 2, a2 = a1 + DEG;
       const light = i % 2 === 0;
-      const bc    = light ? '#f0d9a8' : '#1e1e1e';
+      const bc    = light ? '#1e1e1e' : '#f0d9a8';
       const rc    = light ? '#c0392b' : '#27ae60';
       const lp    = pts(R.NUM, i * DEG);
       data.push(
