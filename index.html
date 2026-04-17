@@ -1204,6 +1204,7 @@ function SetupScreen({ onStart, onBack }) {
   const addPlayer  = ()       => { if (players.length < 4) setPlayers(p => [...p, '']); };
   const delPlayer  = i        => setPlayers(p => p.filter((_, j) => j !== i));
   const handleShuffle = ()    => setPlayers(prev => shufflePlayers(prev));
+  const canShuffle = players.map(n => n.trim()).filter(Boolean).length > 1;
 
   const handleStart = () => {
     const names = players.map(n => n.trim()).filter(Boolean);
@@ -1275,7 +1276,10 @@ function SetupScreen({ onStart, onBack }) {
         {players.length < 4 && (
           <button className="btn btn-gray" onClick={addPlayer}>{t('addPlayer')}</button>
         )}
-        <button className="btn btn-gray" onClick={handleShuffle}>{t('shufflePlayers')}</button>
+        <button className="btn btn-gray"
+                aria-label={t('shufflePlayers')}
+                onClick={handleShuffle}
+                disabled={!canShuffle}>{t('shufflePlayers')}</button>
         <button className="btn btn-red"
                 style={{ fontSize: '1.1rem', padding: '1rem' }}
                 onClick={handleStart}>{t('startGame')}</button>
