@@ -997,7 +997,9 @@ function getGameShareUrl(id, lang) {
     if (normalizedLang) u.searchParams.set(LANG_PARAM, normalizedLang);
     return u.toString();
   } catch {
-    return `${window.location.origin}${window.location.pathname}?${GAME_ID_PARAM}=${encodeURIComponent(id)}`;
+    const normalizedLang = normalizeLang(lang);
+    const base = `${window.location.origin}${window.location.pathname}?${GAME_ID_PARAM}=${encodeURIComponent(id)}`;
+    return normalizedLang ? `${base}&${LANG_PARAM}=${encodeURIComponent(normalizedLang)}` : base;
   }
 }
 
@@ -1790,7 +1792,7 @@ function App() {
         gameParamCount === 1 &&
         langParamCount <= 1 &&
         (!params.has(LANG_PARAM) || !!urlLang);
-      if (!isNormalized) setGameUrlParam(urlId, urlLang || lang);
+      if (!isNormalized) setGameUrlParam(urlId, urlLang);
     } catch { /* noop */ }
     const local = readActive();
     if (local?.id === urlId) { setGame(local); setScreen('game'); return; }
@@ -1801,7 +1803,7 @@ function App() {
       setGame(remote);
       setScreen(remote.phase === 'won' ? 'win' : 'game');
     }).catch(() => {}); // backend offline — silently ignore
-  }, [followSuccessorGame, lang]); // only on mount
+  }, [followSuccessorGame]); // only on mount
 
   /* When a game is won, archive it and navigate to win screen */
   useEffect(() => {
