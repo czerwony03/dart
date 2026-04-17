@@ -1591,10 +1591,11 @@ function App() {
         if (!remote?.id || remote.id !== id) return;
         const local = gameRef.current;
         if (!local || local.id !== id) return; // guard: game changed while request was in-flight
-        if (remote.nextGameId && remote.nextGameId !== id) {
-          const nextRemote = await fetchFromBackend(remote.nextGameId);
-          if (!nextRemote?.id || nextRemote.id !== remote.nextGameId) return;
-          setGameUrlParam(remote.nextGameId);
+        const nextGameId = typeof remote.nextGameId === 'string' ? remote.nextGameId.trim() : '';
+        if (nextGameId && nextGameId !== id) {
+          const nextRemote = await fetchFromBackend(nextGameId);
+          if (!nextRemote?.id || nextRemote.id !== nextGameId) return;
+          setGameUrlParam(nextGameId);
           setGame(nextRemote);
           setScreen(nextRemote.phase === 'won' ? 'win' : 'game');
           return;
@@ -1621,10 +1622,11 @@ function App() {
     if (local?.id === urlId) { setGame(local); setScreen('game'); return; }
     fetchFromBackend(urlId).then(remote => {
       if (!remote?.id) return;
-      if (remote.nextGameId && remote.nextGameId !== remote.id) {
-        fetchFromBackend(remote.nextGameId).then(nextRemote => {
-          if (!nextRemote?.id || nextRemote.id !== remote.nextGameId) return;
-          setGameUrlParam(remote.nextGameId);
+      const nextGameId = typeof remote.nextGameId === 'string' ? remote.nextGameId.trim() : '';
+      if (nextGameId && nextGameId !== urlId) {
+        fetchFromBackend(nextGameId).then(nextRemote => {
+          if (!nextRemote?.id || nextRemote.id !== nextGameId) return;
+          setGameUrlParam(nextGameId);
           setGame(nextRemote);
           setScreen(nextRemote.phase === 'won' ? 'win' : 'game');
         }).catch(() => {});
