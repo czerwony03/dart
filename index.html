@@ -1603,6 +1603,7 @@ function App() {
         if (!remote?.id || remote.id !== id) return;
         const local = gameRef.current;
         if (!local || local.id !== id) return; // guard: game changed while request was in-flight
+        // If finished game points to a successor, switch to that game instead of applying old state.
         if (await followSuccessorGame(id, remote.nextGameId)) return;
         if ((remote.updatedAt ?? 0) > (local.updatedAt ?? 0)) {
           setGame(remote);
