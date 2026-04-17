@@ -9,6 +9,14 @@
  * Files older than 24 h are pruned on every POST to avoid unbounded growth.
  */
 
+/* ── Sentry ── */
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+    \Sentry\init([
+        'dsn' => 'https://71d7f7f3ce33cf56c7ead5f04fc7b748@o4509889334083584.ingest.de.sentry.io/4511236648796240',
+    ]);
+}
+
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
