@@ -764,6 +764,7 @@ const LS_LANG    = 'dart501_lang';
 const LS_PLAYER_SUGGESTIONS = 'dart501_player_suggestions';
 const GAME_ID_PARAM = 'game';
 const LANG_PARAM    = 'lang';
+const VALID_LANGS   = ['en', 'pl'];
 const API_GAME_URL  = 'https://redtm.pl/dart/game.php';
 const POLL_MS       = 1000;
 
@@ -961,7 +962,7 @@ function pushToHistory(game) {
 /* ─── URL helpers ────────────────────────────────────────────────────────────── */
 function normalizeLang(lang) {
   const normalized = typeof lang === 'string' ? lang.trim().toLowerCase() : '';
-  return normalized === 'pl' ? 'pl' : normalized === 'en' ? 'en' : null;
+  return VALID_LANGS.includes(normalized) ? normalized : null;
 }
 function getGameIdFromUrl() {
   try { return new URLSearchParams(window.location.search).get(GAME_ID_PARAM) || null; } catch { return null; }
