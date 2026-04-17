@@ -935,9 +935,13 @@ function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
+function normalizeFinishMode(mode) {
+  return mode === 'single' ? 'single' : 'double';
+}
+
 function newGame(players, opts = {}) {
   const startScore = opts.startScore || 501;
-  const finishMode = opts.finishMode || 'double';
+  const finishMode = normalizeFinishMode(opts.finishMode);
   return {
     id:            genId(),
     phase:         'playing',
@@ -1284,9 +1288,10 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
     : game.darts.length === 0 ? t('skipTurn') : t('doneNext');
 
   // Checkout hints (double-out mode only)
+  const finishMode = normalizeFinishMode(game.finishMode);
   const remaining = game.scores[cp] - game.turnScore;
   const dartsLeft = 3 - game.darts.length;
-  const checkout  = (!game.isBust && game.finishMode === 'double' && dartsLeft > 0)
+  const checkout  = (!game.isBust && finishMode === 'double' && dartsLeft > 0)
     ? getCheckout(remaining, dartsLeft)
     : null;
 
@@ -1656,7 +1661,8 @@ function App() {
       if (remaining === 0) {
         // Double-out: last dart must be a double (D1–D20 or BULL)
         const isDouble = label.startsWith('D') || label === 'BULL';
-        if (prev.finishMode === 'double' && !isDouble) return { ...prev, isBust: true, updatedAt: Date.now() };
+        const finishMode = normalizeFinishMode(prev.finishMode);
+        if (finishMode === 'double' && !isDouble) return { ...prev, isBust: true, updatedAt: Date.now() };
         const scores = [...prev.scores];
         scores[prev.currentPlayer] = 0;
         return { ...prev, darts, turnScore, scores,
