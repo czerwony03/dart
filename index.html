@@ -320,6 +320,18 @@
 
     .share-icon:hover { color: #7bbfff; background: #0a1a2e; }
 
+    .history-icon {
+      background: transparent;
+      color: #b58cff;
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      font-size: 1rem;
+      border-radius: 8px;
+    }
+
+    .history-icon:hover { color: #d2bcff; background: #1a1030; }
+
     /* Scoreboard */
     .scoreboard {
       display: flex;
@@ -343,6 +355,13 @@
       background: #0e1a35;
       min-width: 60px;
       transition: background 0.2s;
+    }
+
+    .score-card-btn {
+      border: none;
+      cursor: pointer;
+      color: inherit;
+      font: inherit;
     }
 
     .score-card.active { background: #e94560; }
@@ -440,6 +459,93 @@
       display: flex;
       gap: 0.5rem;
       padding: 0.4rem 1rem 0.6rem;
+    }
+
+    .history-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.62);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      z-index: 50;
+    }
+
+    .history-modal {
+      width: min(520px, 100%);
+      max-height: min(75vh, 700px);
+      background: #121a31;
+      border: 1px solid #2e2e4a;
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .history-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.8rem 1rem;
+      border-bottom: 1px solid #2e2e4a;
+    }
+
+    .history-modal-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #ffd700;
+    }
+
+    .history-modal-content {
+      padding: 0.85rem 1rem 1rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .history-player-block {
+      background: #0b1230;
+      border: 1px solid #232f56;
+      border-radius: 10px;
+      padding: 0.65rem 0.75rem;
+    }
+
+    .history-player-name {
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 0.45rem;
+      color: #9ec0ff;
+    }
+
+    .history-turn-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .history-turn-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      color: #d3d8e6;
+    }
+
+    .history-turn-meta {
+      font-size: 0.72rem;
+      color: #888fa8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-empty {
+      font-size: 0.78rem;
+      color: #6f7899;
     }
 
     /* ─── WIN SCREEN ─────────────────────────────────────────────────────────── */
@@ -692,6 +798,14 @@ const TRANSLATIONS = {
     doubleOut:        'Double Out',
     game:             'Game',
     shareGame:        'Share',
+    history:          'History',
+    allPlayersHistory:'All Players History',
+    viewAllHistory:   'Show all players history',
+    playerHistory:    'Show player history',
+    close:            'Close',
+    noTurnsYet:       'No turns yet',
+    bustShort:        'BUST',
+    pointsShort:      'pts',
     linkCopied:       'Link copied',
     syncOffline:      'Sync offline',
   },
@@ -740,6 +854,14 @@ const TRANSLATIONS = {
     doubleOut:        'Double Out',
     game:             'Gra',
     shareGame:        'Udostępnij',
+    history:          'Historia',
+    allPlayersHistory:'Historia wszystkich graczy',
+    viewAllHistory:   'Pokaż historię wszystkich graczy',
+    playerHistory:    'Pokaż historię gracza',
+    close:            'Zamknij',
+    noTurnsYet:       'Brak tur',
+    bustShort:        'BUST',
+    pointsShort:      'pkt',
     linkCopied:       'Link skopiowany',
     syncOffline:      'Synchronizacja offline',
   },
@@ -1153,6 +1275,7 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
   const { t } = useLang();
   const [manualVal, setManualVal] = useState('');
   const [manualErr, setManualErr] = useState(false);
+  const [historyModal, setHistoryModal] = useState(null);
   const inputRef = useRef(null);
 
   const cp     = game.currentPlayer;
@@ -1168,6 +1291,46 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
   const checkout  = (!game.isBust && game.finishMode === 'double' && dartsLeft > 0)
     ? getCheckout(remaining, dartsLeft)
     : null;
+
+  const turnHistoryByPlayer = useMemo(() => {
+    const snapshots = Array.isArray(game.stateHistory) ? game.stateHistory : [];
+    const turns = snapshots
+      .filter(st => Number.isInteger(st.currentPlayer))
+      .map((st, idx) => ({
+        id: `snap-${idx}`,
+        player: st.currentPlayer,
+        round: st.round,
+        points: st.isBust ? 0 : st.turnScore,
+        bust: Boolean(st.isBust),
+        darts: Array.isArray(st.darts) ? st.darts.map(d => d.label).filter(Boolean) : [],
+      }));
+
+    if ((game.phase === 'playing' || game.phase === 'won') && (game.darts.length > 0 || game.isBust)) {
+      turns.push({
+        id: 'current-turn',
+        player: game.currentPlayer,
+        round: game.round,
+        points: game.isBust ? 0 : game.turnScore,
+        bust: Boolean(game.isBust),
+        darts: game.darts.map(d => d.label).filter(Boolean),
+      });
+    }
+
+    const grouped = game.players.map(() => []);
+    turns.forEach(turn => {
+      if (grouped[turn.player]) grouped[turn.player].push(turn);
+    });
+    return grouped;
+  }, [
+    game.stateHistory,
+    game.phase,
+    game.darts,
+    game.isBust,
+    game.currentPlayer,
+    game.round,
+    game.turnScore,
+    game.players,
+  ]);
 
   const submitManual = () => {
     const v = parseInt(manualVal, 10);
@@ -1188,6 +1351,10 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
         <span className="cp-name">{game.players[cp]}</span>
         <div className="header-right">
           <span className="dart-counter">{game.darts.length}/3 🎯</span>
+          <button className="btn btn-icon history-icon"
+                  type="button"
+                  onClick={() => setHistoryModal('all')}
+                  aria-label={t('viewAllHistory')}>☰</button>
           <button className="btn btn-icon share-icon" onClick={onShare} aria-label={t('shareGame')}>⎋</button>
           <button className="btn btn-icon home-icon" onClick={onHome} aria-label={t('goHome')}>⌂</button>
         </div>
@@ -1199,11 +1366,15 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
           const pointsScored    = game.startScore - game.scores[i];
           const avg             = roundsCompleted > 0 ? (pointsScored / roundsCompleted).toFixed(1) : '—';
           return (
-            <div key={i} className={`score-card${i === cp ? ' active' : ''}`}>
+            <button key={i}
+                    type="button"
+                    className={`score-card score-card-btn${i === cp ? ' active' : ''}`}
+                    onClick={() => setHistoryModal(i)}
+                    aria-label={`${t('playerHistory')}: ${name}`}>
               <span className="sc-name">{name}</span>
               <span className="sc-val">{game.scores[i]}</span>
               <span className="sc-avg">{t('avg')} {avg}</span>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -1267,6 +1438,45 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
                   onClick={onAdvance}>{nextLabel}</button>
         </div>
       </div>
+
+      {historyModal !== null && (
+        <div className="history-modal-backdrop" onClick={() => setHistoryModal(null)}>
+          <div className="history-modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
+            <div className="history-modal-header">
+              <div className="history-modal-title">
+                {historyModal === 'all'
+                  ? t('allPlayersHistory')
+                  : `${game.players[historyModal]} · ${t('history')}`}
+              </div>
+              <button className="btn btn-gray btn-sm" onClick={() => setHistoryModal(null)}>{t('close')}</button>
+            </div>
+            <div className="history-modal-content">
+              {(historyModal === 'all' ? game.players.map((_, i) => i) : [historyModal]).map(i => {
+                const turns = turnHistoryByPlayer[i] || [];
+                return (
+                  <div key={i} className="history-player-block">
+                    {historyModal === 'all' && <div className="history-player-name">{game.players[i]}</div>}
+                    {turns.length === 0 ? (
+                      <div className="history-empty">{t('noTurnsYet')}</div>
+                    ) : (
+                      <div className="history-turn-list">
+                        {turns.map(turn => (
+                          <div key={turn.id} className="history-turn-row">
+                            <span>{t('round')} {turn.round} · {turn.points} {t('pointsShort')}</span>
+                            <span className="history-turn-meta">
+                              {turn.bust ? t('bustShort') : (turn.darts.length ? turn.darts.join(', ') : '—')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
