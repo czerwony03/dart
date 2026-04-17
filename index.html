@@ -731,8 +731,9 @@ function useLang() { return React.useContext(LangContext); }
 /* ─── localStorage helpers ───────────────────────────────────────────────────── */
 const readActive   = () => { try { return JSON.parse(localStorage.getItem(LS_ACTIVE))  || null; } catch { return null; } };
 const writeActive  = g  => {
+  if (!g) return;
   try {
-    const { stateHistory: _stateHistory, ...persisted } = g || {};
+    const { stateHistory: _stateHistory, ...persisted } = g;
     localStorage.setItem(LS_ACTIVE, JSON.stringify(persisted));
   } catch {
     /* private mode / quota exceeded — silently ignore autosave */
