@@ -778,8 +778,7 @@ function getGameIdFromUrl() {
 function setGameUrlParam(id) {
   try {
     const u = new URL(window.location.href);
-    u.search = '';
-    u.searchParams.set(GAME_ID_PARAM, id);
+    u.search = new URLSearchParams([[GAME_ID_PARAM, id]]).toString();
     window.history.replaceState(null, '', u.toString());
   } catch { /* noop */ }
 }
@@ -1370,7 +1369,7 @@ function App() {
     if (!urlId) return;
     try {
       const params = new URLSearchParams(window.location.search);
-      const isNormalized = params.get(GAME_ID_PARAM) === urlId && Array.from(params.keys()).length === 1;
+      const isNormalized = params.get(GAME_ID_PARAM) === urlId && params.size === 1;
       if (!isNormalized) setGameUrlParam(urlId);
     } catch { /* noop */ }
     const local = readActive();
