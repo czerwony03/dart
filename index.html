@@ -969,6 +969,7 @@ function newGame(players, opts = {}) {
     updatedAt:     Date.now(),
     startedAt:     Date.now(),
     finishedAt:    null,
+    nextGameId:    null,
     stateHistory:  [],
   };
 }
@@ -1561,6 +1562,11 @@ function App() {
 
   const t = useCallback(key => (TRANSLATIONS[lang] || TRANSLATIONS.en)[key] || key, [lang]);
 
+  const announceNextGame = useCallback((finishedGame, nextGameId) => {
+    if (!finishedGame?.id || finishedGame.phase !== 'won' || !nextGameId || finishedGame.id === nextGameId) return;
+    syncToBackend({ ...finishedGame, nextGameId, updatedAt: Date.now() });
+  }, []);
+
   /* Auto-save active game to localStorage whenever in-progress state changes */
   useEffect(() => {
     if (game?.phase === 'playing') writeActive(game);
@@ -1585,6 +1591,14 @@ function App() {
         if (!remote?.id || remote.id !== id) return;
         const local = gameRef.current;
         if (!local || local.id !== id) return; // guard: game changed while request was in-flight
+        if (remote.nextGameId && remote.nextGameId !== id) {
+          const nextRemote = await fetchFromBackend(remote.nextGameId);
+          if (!nextRemote?.id || nextRemote.id !== remote.nextGameId) return;
+          setGameUrlParam(remote.nextGameId);
+          setGame(nextRemote);
+          setScreen(nextRemote.phase === 'won' ? 'win' : 'game');
+          return;
+        }
         if ((remote.updatedAt ?? 0) > (local.updatedAt ?? 0)) {
           setGame(remote);
         }
@@ -1607,6 +1621,15 @@ function App() {
     if (local?.id === urlId) { setGame(local); setScreen('game'); return; }
     fetchFromBackend(urlId).then(remote => {
       if (!remote?.id) return;
+      if (remote.nextGameId && remote.nextGameId !== remote.id) {
+        fetchFromBackend(remote.nextGameId).then(nextRemote => {
+          if (!nextRemote?.id || nextRemote.id !== remote.nextGameId) return;
+          setGameUrlParam(remote.nextGameId);
+          setGame(nextRemote);
+          setScreen(nextRemote.phase === 'won' ? 'win' : 'game');
+        }).catch(() => {});
+        return;
+      }
       setGame(remote);
       setScreen(remote.phase === 'won' ? 'win' : 'game');
     }).catch(() => {}); // backend offline — silently ignore
@@ -1642,11 +1665,13 @@ function App() {
   }, [t]);
 
   const handleStart = useCallback((players, opts) => {
+    const previousWon = game?.phase === 'won' ? game : null;
     const g = newGame(players, opts);
+    announceNextGame(previousWon, g.id);
     setGame(g);
     setGameUrlParam(g.id);
     setScreen('game');
-  }, []);
+  }, [announceNextGame, game]);
 
   const handleResume = useCallback(() => {
     const active = readActive();
@@ -1731,10 +1756,11 @@ function App() {
   const rematch = useCallback(() => {
     if (!game) return;
     const g = newGame(shufflePlayers(game.players), { startScore: game.startScore, finishMode: game.finishMode });
+    announceNextGame(game, g.id);
     setGame(g);
     setGameUrlParam(g.id);
     setScreen('game');
-  }, [game]);
+  }, [announceNextGame, game]);
 
   /* ── Render ── */
   return (
