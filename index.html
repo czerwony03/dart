@@ -943,13 +943,13 @@ function normalizeFinishMode(mode) {
 
 function shufflePlayers(players) {
   const original = [...players];
-  const shuffled = [...players];
-  if (shuffled.length < 2) return shuffled;
+  if (original.length < 2) return original;
 
   const canChangeOrder = new Set(original).size > 1;
-  if (!canChangeOrder) return shuffled;
+  if (!canChangeOrder) return [...original];
 
   for (let attempt = 0; attempt < 5; attempt++) {
+    const shuffled = [...original];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
