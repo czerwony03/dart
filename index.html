@@ -1368,7 +1368,11 @@ function App() {
   useEffect(() => {
     const urlId = getGameIdFromUrl();
     if (!urlId) return;
-    setGameUrlParam(urlId);
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const isNormalized = params.get(GAME_ID_PARAM) === urlId && params.toString() === `${GAME_ID_PARAM}=${urlId}`;
+      if (!isNormalized) setGameUrlParam(urlId);
+    } catch { /* noop */ }
     const local = readActive();
     if (local?.id === urlId) { setGame(local); setScreen('game'); return; }
     fetchFromBackend(urlId).then(remote => {
