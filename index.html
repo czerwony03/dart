@@ -763,6 +763,7 @@ const LS_HISTORY = 'dart501_history';
 const LS_LANG    = 'dart501_lang';
 const LS_PLAYER_SUGGESTIONS = 'dart501_player_suggestions';
 const GAME_ID_PARAM = 'game';
+const LANG_PARAM    = 'lang';
 const API_GAME_URL  = 'https://redtm.pl/dart/game.php';
 const POLL_MS       = 1000;
 
@@ -958,23 +959,46 @@ function pushToHistory(game) {
 }
 
 /* ─── URL helpers ────────────────────────────────────────────────────────────── */
+function normalizeLang(lang) {
+  const normalized = typeof lang === 'string' ? lang.trim().toLowerCase() : '';
+  return normalized === 'pl' ? 'pl' : normalized === 'en' ? 'en' : null;
+}
 function getGameIdFromUrl() {
   try { return new URLSearchParams(window.location.search).get(GAME_ID_PARAM) || null; } catch { return null; }
 }
-function setGameUrlParam(id) {
+function getLangFromUrl() {
+  try { return normalizeLang(new URLSearchParams(window.location.search).get(LANG_PARAM)); } catch { return null; }
+}
+function setGameUrlParam(id, lang) {
   try {
     const u = new URL(window.location.href);
     u.search = '';
     u.searchParams.set(GAME_ID_PARAM, id);
+    const normalizedLang = normalizeLang(lang);
+    if (normalizedLang) u.searchParams.set(LANG_PARAM, normalizedLang);
     window.history.replaceState(null, '', u.toString());
   } catch { /* noop */ }
 }
-function clearGameUrlParam() {
+function clearGameUrlParam(lang) {
   try {
     const u = new URL(window.location.href);
     u.search = '';
+    const normalizedLang = normalizeLang(lang);
+    if (normalizedLang) u.searchParams.set(LANG_PARAM, normalizedLang);
     window.history.replaceState(null, '', u.toString());
   } catch { /* noop */ }
+}
+function getGameShareUrl(id, lang) {
+  try {
+    const u = new URL(window.location.href);
+    u.search = '';
+    u.searchParams.set(GAME_ID_PARAM, id);
+    const normalizedLang = normalizeLang(lang);
+    if (normalizedLang) u.searchParams.set(LANG_PARAM, normalizedLang);
+    return u.toString();
+  } catch {
+    return `${window.location.origin}${window.location.pathname}?${GAME_ID_PARAM}=${encodeURIComponent(id)}`;
+  }
 }
 
 /* ─── Backend sync helpers ───────────────────────────────────────────────────── */
@@ -1686,12 +1710,15 @@ function App() {
   const [history, setHistory] = useState(() => readHistory());
   const [toastMsg, showToast] = useToast();
   const [lang, setLangState]  = useState(() => {
-    try { return localStorage.getItem(LS_LANG) || 'en'; } catch { return 'en'; }
+    const urlLang = getLangFromUrl();
+    if (urlLang) return urlLang;
+    try { return normalizeLang(localStorage.getItem(LS_LANG)) || 'en'; } catch { return 'en'; }
   });
 
   const setLang = useCallback(l => {
-    setLangState(l);
-    try { localStorage.setItem(LS_LANG, l); } catch { /* private/storage-full — silently ignore */ }
+    const normalizedLang = normalizeLang(l) || 'en';
+    setLangState(normalizedLang);
+    try { localStorage.setItem(LS_LANG, normalizedLang); } catch { /* private/storage-full — silently ignore */ }
   }, []);
 
   const t = useCallback(key => (TRANSLATIONS[lang] || TRANSLATIONS.en)[key] || key, [lang]);
@@ -1707,11 +1734,11 @@ function App() {
     if (!nextGameId || nextGameId === currentGameId) return false;
     const nextRemote = await fetchFromBackend(nextGameId);
     if (!nextRemote?.id || nextRemote.id !== nextGameId) return false;
-    setGameUrlParam(nextGameId);
+    setGameUrlParam(nextGameId, lang);
     setGame(nextRemote);
     setScreen(nextRemote.phase === 'won' ? 'win' : 'game');
     return true;
-  }, []);
+  }, [lang]);
 
   /* Auto-save active game to localStorage whenever in-progress state changes */
   useEffect(() => {
@@ -1751,11 +1778,19 @@ function App() {
   /* On mount: load game from ?game=<id> URL param (offline-safe) */
   useEffect(() => {
     const urlId = getGameIdFromUrl();
+    const urlLang = getLangFromUrl();
     if (!urlId) return;
     try {
       const params = new URLSearchParams(window.location.search);
-      const isNormalized = params.size === 1 && params.has(GAME_ID_PARAM) && params.getAll(GAME_ID_PARAM).length === 1;
-      if (!isNormalized) setGameUrlParam(urlId);
+      const gameParamCount = params.getAll(GAME_ID_PARAM).length;
+      const langParamCount = params.getAll(LANG_PARAM).length;
+      const hasOnlyAllowedParams = [...params.keys()].every(key => key === GAME_ID_PARAM || key === LANG_PARAM);
+      const isNormalized =
+        hasOnlyAllowedParams &&
+        gameParamCount === 1 &&
+        langParamCount <= 1 &&
+        (!params.has(LANG_PARAM) || !!urlLang);
+      if (!isNormalized) setGameUrlParam(urlId, urlLang || lang);
     } catch { /* noop */ }
     const local = readActive();
     if (local?.id === urlId) { setGame(local); setScreen('game'); return; }
@@ -1766,7 +1801,7 @@ function App() {
       setGame(remote);
       setScreen(remote.phase === 'won' ? 'win' : 'game');
     }).catch(() => {}); // backend offline — silently ignore
-  }, [followSuccessorGame]); // only on mount
+  }, [followSuccessorGame, lang]); // only on mount
 
   /* When a game is won, archive it and navigate to win screen */
   useEffect(() => {
@@ -1787,7 +1822,7 @@ function App() {
   }, [game?.isBust, showToast, t]);
 
   /* ── Navigation ── */
-  const goHome = useCallback(() => { clearGameUrlParam(); setGame(null); setScreen('home'); }, []);
+  const goHome = useCallback(() => { clearGameUrlParam(lang); setGame(null); setScreen('home'); }, [lang]);
 
   const handleNewGame = useCallback(() => {
     if (readActive()) {
@@ -1802,14 +1837,14 @@ function App() {
     const g = newGame(players, opts);
     announceNextGame(previousWon, g.id);
     setGame(g);
-    setGameUrlParam(g.id);
+    setGameUrlParam(g.id, lang);
     setScreen('game');
-  }, [announceNextGame, game]);
+  }, [announceNextGame, game, lang]);
 
   const handleResume = useCallback(() => {
     const active = readActive();
-    if (active) { setGame(active); setGameUrlParam(active.id); setScreen('game'); }
-  }, []);
+    if (active) { setGame(active); setGameUrlParam(active.id, lang); setScreen('game'); }
+  }, [lang]);
 
   const handleViewGame = useCallback(g => { setGame(g); setScreen('view'); }, []);
 
@@ -1878,22 +1913,22 @@ function App() {
 
   const handleShare = useCallback(() => {
     if (!game?.id) return;
-    const url = `${window.location.origin}${window.location.pathname}?${GAME_ID_PARAM}=${game.id}`;
+    const url = getGameShareUrl(game.id, lang);
     if (navigator.share) {
       navigator.share({ url, title: '🎯 Dart 501' }).catch(() => {});
     } else {
       navigator.clipboard.writeText(url).then(() => showToast(t('linkCopied'))).catch(() => {});
     }
-  }, [game?.id, showToast, t]);
+  }, [game?.id, lang, showToast, t]);
 
   const rematch = useCallback(() => {
     if (!game) return;
     const g = newGame(shufflePlayers(game.players), { startScore: game.startScore, finishMode: game.finishMode });
     announceNextGame(game, g.id);
     setGame(g);
-    setGameUrlParam(g.id);
+    setGameUrlParam(g.id, lang);
     setScreen('game');
-  }, [announceNextGame, game]);
+  }, [announceNextGame, game, lang]);
 
   /* ── Render ── */
   return (
