@@ -607,7 +607,7 @@ if (sentry) {
   const rawConsoleError = console.error;
 
   console.warn = (...args) => {
-    sentry.captureMessage(toMessage(args), { level: 'warning' });
+    sentry.captureMessage(toMessage(args), 'warning');
     rawConsoleWarn.apply(console, args);
   };
 
@@ -615,7 +615,7 @@ if (sentry) {
     if (args[0] instanceof Error) {
       sentry.captureException(args[0]);
     } else {
-      sentry.captureMessage(toMessage(args), { level: 'error' });
+      sentry.captureMessage(toMessage(args), 'error');
     }
     rawConsoleError.apply(console, args);
   };
@@ -625,7 +625,7 @@ if (sentry) {
       sentry.captureException(event.reason);
       return;
     }
-    sentry.captureMessage(`Unhandled promise rejection: ${toMessage([event.reason])}`, { level: 'error' });
+    sentry.captureMessage(`Unhandled promise rejection: ${toMessage([event.reason])}`, 'error');
   });
 }
 
