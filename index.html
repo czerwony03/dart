@@ -942,12 +942,22 @@ function normalizeFinishMode(mode) {
 }
 
 function shufflePlayers(players) {
+  const original = [...players];
   const shuffled = [...players];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  if (shuffled.length < 2) return shuffled;
+
+  const canChangeOrder = new Set(original).size > 1;
+  if (!canChangeOrder) return shuffled;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    if (!shuffled.every((name, i) => name === original[i])) return shuffled;
   }
-  return shuffled;
+
+  return [...original.slice(1), original[0]];
 }
 
 function newGame(players, opts = {}) {
