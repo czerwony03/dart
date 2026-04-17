@@ -767,6 +767,7 @@ const TRANSLATIONS = {
     enterNames:       'Enter player names to begin',
     playerPlaceholder:'Player',
     addPlayer:        '＋ Add Player',
+    shufflePlayers:   '🔀 Shuffle Players',
     startGame:        '🎯 Start Game',
     minPlayers:       'Enter at least 2 player names.',
     nextPlayer:       'Next Player →',
@@ -780,7 +781,7 @@ const TRANSLATIONS = {
     undo:             '↩ Undo',
     wins:             'Wins!',
     game501Round:     'Game 501 · Round',
-    rematch:          '🔄 Rematch (same players)',
+    rematch:          '🔄 Rematch (same players, shuffled)',
     newGameBtn:       '🎯 New Game',
     home:             '⌂ Home',
     backToHome:       '← Back to Home',
@@ -823,6 +824,7 @@ const TRANSLATIONS = {
     enterNames:       'Podaj imiona graczy',
     playerPlaceholder:'Gracz',
     addPlayer:        '＋ Dodaj gracza',
+    shufflePlayers:   '🔀 Przetasuj graczy',
     startGame:        '🎯 Rozpocznij grę',
     minPlayers:       'Podaj co najmniej 2 imiona graczy.',
     nextPlayer:       'Następny gracz →',
@@ -836,7 +838,7 @@ const TRANSLATIONS = {
     undo:             '↩ Cofnij',
     wins:             'Wygrywa!',
     game501Round:     'Gra 501 · Runda',
-    rematch:          '🔄 Rewanż (ci sami gracze)',
+    rematch:          '🔄 Rewanż (ci sami gracze, losowo)',
     newGameBtn:       '🎯 Nowa gra',
     home:             '⌂ Dom',
     backToHome:       '← Powrót do menu',
@@ -937,6 +939,15 @@ function genId() {
 
 function normalizeFinishMode(mode) {
   return mode === 'single' ? 'single' : 'double';
+}
+
+function shufflePlayers(players) {
+  const shuffled = [...players];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 }
 
 function newGame(players, opts = {}) {
@@ -1192,6 +1203,7 @@ function SetupScreen({ onStart, onBack }) {
   const updateName = (i, val) => setPlayers(prev => { const p = [...prev]; p[i] = val; return p; });
   const addPlayer  = ()       => { if (players.length < 4) setPlayers(p => [...p, '']); };
   const delPlayer  = i        => setPlayers(p => p.filter((_, j) => j !== i));
+  const handleShuffle = ()    => setPlayers(prev => shufflePlayers(prev));
 
   const handleStart = () => {
     const names = players.map(n => n.trim()).filter(Boolean);
@@ -1263,6 +1275,7 @@ function SetupScreen({ onStart, onBack }) {
         {players.length < 4 && (
           <button className="btn btn-gray" onClick={addPlayer}>{t('addPlayer')}</button>
         )}
+        <button className="btn btn-gray" onClick={handleShuffle}>{t('shufflePlayers')}</button>
         <button className="btn btn-red"
                 style={{ fontSize: '1.1rem', padding: '1rem' }}
                 onClick={handleStart}>{t('startGame')}</button>
@@ -1713,7 +1726,7 @@ function App() {
 
   const rematch = useCallback(() => {
     if (!game) return;
-    const g = newGame(game.players, { startScore: game.startScore, finishMode: game.finishMode });
+    const g = newGame(shufflePlayers(game.players), { startScore: game.startScore, finishMode: game.finishMode });
     setGame(g);
     setGameUrlParam(g.id);
     setScreen('game');
