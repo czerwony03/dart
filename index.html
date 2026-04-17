@@ -308,6 +308,18 @@
 
     .home-icon:hover { color: #ccc; background: #1a1a30; }
 
+    .share-icon {
+      background: transparent;
+      color: #4a9eff;
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      font-size: 1rem;
+      border-radius: 8px;
+    }
+
+    .share-icon:hover { color: #7bbfff; background: #0a1a2e; }
+
     /* Scoreboard */
     .scoreboard {
       display: flex;
@@ -630,7 +642,7 @@ const LS_ACTIVE  = 'dart501_active';
 const LS_HISTORY = 'dart501_history';
 const LS_LANG    = 'dart501_lang';
 const GAME_ID_PARAM = 'game';
-const API_GAME_URL  = 'https://redtm.pl/dart/game.php';
+const API_GAME_URL  = 'https://czerwony03.github.io/dart/game.php';
 const POLL_MS       = 2500;
 
 /* ─── Translations ───────────────────────────────────────────────────────────── */
@@ -1136,7 +1148,7 @@ function SetupScreen({ onStart, onBack }) {
 }
 
 /* ─── GameScreen ─────────────────────────────────────────────────────────────── */
-function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome }) {
+function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
   const { t } = useLang();
   const [manualVal, setManualVal] = useState('');
   const [manualErr, setManualErr] = useState(false);
@@ -1175,6 +1187,7 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome }) {
         <span className="cp-name">{game.players[cp]}</span>
         <div className="header-right">
           <span className="dart-counter">{game.darts.length}/3 🎯</span>
+          <button className="btn btn-icon share-icon" onClick={onShare} aria-label={t('shareGame')}>⎋</button>
           <button className="btn btn-icon home-icon" onClick={onHome} aria-label={t('goHome')}>⌂</button>
         </div>
       </div>
@@ -1322,6 +1335,47 @@ function App() {
     if (game?.phase === 'playing') writeActive(game);
   }, [game]);
 
+  /* Sync every game state change to the backend (fire-and-forget, offline-safe) */
+  useEffect(() => {
+    if (game?.id && (game.phase === 'playing' || game.phase === 'won')) {
+      syncToBackend(game);
+    }
+  }, [game]);
+
+  /* Poll backend every POLL_MS when a game is active — apply if remote is newer */
+  const gameRef = useRef(game);
+  useEffect(() => { gameRef.current = game; }, [game]);
+  useEffect(() => {
+    if (!game?.id || (screen !== 'game' && screen !== 'win')) return;
+    const id = game.id;
+    const iv = setInterval(async () => {
+      try {
+        const remote = await fetchFromBackend(id);
+        if (!remote?.id || remote.id !== id) return;
+        const local = gameRef.current;
+        if (!local || local.id !== id) return; // guard: game changed while request was in-flight
+        if ((remote.updatedAt ?? 0) > (local.updatedAt ?? 0)) {
+          setGame(prev => ({ ...remote, stateHistory: prev?.stateHistory || [] }));
+        }
+      } catch { /* offline — silently ignore */ }
+    }, POLL_MS);
+    return () => clearInterval(iv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.id, screen]);
+
+  /* On mount: load game from ?game=<id> URL param (offline-safe) */
+  useEffect(() => {
+    const urlId = getGameIdFromUrl();
+    if (!urlId) return;
+    const local = readActive();
+    if (local?.id === urlId) { setGame(local); setScreen('game'); return; }
+    fetchFromBackend(urlId).then(remote => {
+      if (!remote?.id) return;
+      setGame({ ...remote, stateHistory: [] });
+      setScreen(remote.phase === 'won' ? 'win' : 'game');
+    }).catch(() => {}); // backend offline — silently ignore
+  }, []); // only on mount
+
   /* When a game is won, archive it and navigate to win screen */
   useEffect(() => {
     if (game?.phase === 'won' && screen === 'game') {
@@ -1341,7 +1395,7 @@ function App() {
   }, [game?.isBust, showToast, t]);
 
   /* ── Navigation ── */
-  const goHome = useCallback(() => { setGame(null); setScreen('home'); }, []);
+  const goHome = useCallback(() => { clearGameUrlParam(); setGame(null); setScreen('home'); }, []);
 
   const handleNewGame = useCallback(() => {
     if (readActive()) {
@@ -1352,13 +1406,15 @@ function App() {
   }, [t]);
 
   const handleStart = useCallback((players, opts) => {
-    setGame(newGame(players, opts));
+    const g = newGame(players, opts);
+    setGame(g);
+    setGameUrlParam(g.id);
     setScreen('game');
   }, []);
 
   const handleResume = useCallback(() => {
     const active = readActive();
-    if (active) { setGame(active); setScreen('game'); }
+    if (active) { setGame(active); setGameUrlParam(active.id); setScreen('game'); }
   }, []);
 
   const handleViewGame = useCallback(g => { setGame(g); setScreen('view'); }, []);
@@ -1380,34 +1436,34 @@ function App() {
     setGame(prev => {
       if (!prev || prev.darts.length >= 3 || prev.isBust) return prev;
       const remaining = prev.scores[prev.currentPlayer] - prev.turnScore - score;
-      if (remaining < 0) return { ...prev, isBust: true };
+      if (remaining < 0) return { ...prev, isBust: true, updatedAt: Date.now() };
       const darts     = [...prev.darts, { score, label, isMiss }];
       const turnScore = prev.turnScore + score;
       if (remaining === 0) {
         // Double-out: last dart must be a double (D1–D20 or BULL)
         const isDouble = label.startsWith('D') || label === 'BULL';
-        if (prev.finishMode === 'double' && !isDouble) return { ...prev, isBust: true };
+        if (prev.finishMode === 'double' && !isDouble) return { ...prev, isBust: true, updatedAt: Date.now() };
         const scores = [...prev.scores];
         scores[prev.currentPlayer] = 0;
         return { ...prev, darts, turnScore, scores,
-                 winner: prev.currentPlayer, phase: 'won', finishedAt: Date.now() };
+                 winner: prev.currentPlayer, phase: 'won', finishedAt: Date.now(), updatedAt: Date.now() };
       }
-      return { ...prev, darts, turnScore };
+      return { ...prev, darts, turnScore, updatedAt: Date.now() };
     });
   }, []);
 
   const undoDart = useCallback(() => {
     setGame(prev => {
       if (!prev) return prev;
-      if (prev.isBust) return { ...prev, isBust: false };
+      if (prev.isBust) return { ...prev, isBust: false, updatedAt: Date.now() };
       if (prev.darts.length === 0) {
         if (!prev.stateHistory || prev.stateHistory.length === 0) return prev;
         const stateHistory = prev.stateHistory.slice(0, -1);
         const { stateHistory: _, ...restoredState } = prev.stateHistory[prev.stateHistory.length - 1];
-        return { ...restoredState, stateHistory };
+        return { ...restoredState, stateHistory, updatedAt: Date.now() };
       }
       const darts = prev.darts.slice(0, -1);
-      return { ...prev, darts, turnScore: prev.turnScore - prev.darts[prev.darts.length - 1].score };
+      return { ...prev, darts, turnScore: prev.turnScore - prev.darts[prev.darts.length - 1].score, updatedAt: Date.now() };
     });
   }, []);
 
@@ -1421,13 +1477,25 @@ function App() {
       const stateHistory = [...(prev.stateHistory || []), snapshot];
       return { ...prev, scores, currentPlayer: cp,
                round: cp === 0 ? prev.round + 1 : prev.round,
-               darts: [], turnScore: 0, isBust: false, stateHistory };
+               darts: [], turnScore: 0, isBust: false, updatedAt: Date.now(), stateHistory };
     });
   }, []);
 
+  const handleShare = useCallback(() => {
+    if (!game?.id) return;
+    const url = `${window.location.origin}${window.location.pathname}?${GAME_ID_PARAM}=${game.id}`;
+    if (navigator.share) {
+      navigator.share({ url, title: '🎯 Dart 501' }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url).then(() => showToast(t('linkCopied'))).catch(() => {});
+    }
+  }, [game?.id, showToast, t]);
+
   const rematch = useCallback(() => {
     if (!game) return;
-    setGame(newGame(game.players, { startScore: game.startScore, finishMode: game.finishMode }));
+    const g = newGame(game.players, { startScore: game.startScore, finishMode: game.finishMode });
+    setGame(g);
+    setGameUrlParam(g.id);
     setScreen('game');
   }, [game]);
 
@@ -1455,6 +1523,7 @@ function App() {
             onUndo={undoDart}
             onAdvance={advancePlayer}
             onHome={goHome}
+            onShare={handleShare}
           />
         )}
         {screen === 'win' && game && (

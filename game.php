@@ -26,7 +26,7 @@ define('MAX_BODY',      65536);          // 64 KB per game file
 define('MAX_AGE_SECS',  86400);          // prune files older than 24 h
 
 /* ── Storage dir ── */
-if (!is_dir(GAMES_DIR) && !mkdir(GAMES_DIR, 0755, true)) {
+if (!is_dir(GAMES_DIR) && !mkdir(GAMES_DIR, 0750, true)) {
     http_response_code(500);
     echo json_encode(['error' => 'Storage unavailable']);
     exit;
