@@ -630,7 +630,8 @@ const LS_ACTIVE  = 'dart501_active';
 const LS_HISTORY = 'dart501_history';
 const LS_LANG    = 'dart501_lang';
 const GAME_ID_PARAM = 'game';
-const API_GAME_URL  = './api/game.php';
+const API_GAME_URL  = 'https://redtm.pl/dart/game.php';
+const POLL_MS       = 2500;
 
 /* ─── Translations ───────────────────────────────────────────────────────────── */
 const TRANSLATIONS = {
@@ -758,6 +759,43 @@ function pushToHistory(game) {
   writeHistory(h);
 }
 
+/* ─── URL helpers ────────────────────────────────────────────────────────────── */
+function getGameIdFromUrl() {
+  try { return new URLSearchParams(window.location.search).get(GAME_ID_PARAM) || null; } catch { return null; }
+}
+function setGameUrlParam(id) {
+  try {
+    const u = new URL(window.location.href);
+    u.searchParams.set(GAME_ID_PARAM, id);
+    window.history.replaceState(null, '', u.toString());
+  } catch { /* noop */ }
+}
+function clearGameUrlParam() {
+  try {
+    const u = new URL(window.location.href);
+    u.searchParams.delete(GAME_ID_PARAM);
+    window.history.replaceState(null, '', u.toString());
+  } catch { /* noop */ }
+}
+
+/* ─── Backend sync helpers ───────────────────────────────────────────────────── */
+function syncToBackend(game) {
+  if (!game?.id) return;
+  const { stateHistory: _sh, ...state } = game;
+  fetch(API_GAME_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: game.id, state }),
+  }).catch(() => {}); // fire-and-forget — silently ignore offline errors
+}
+
+async function fetchFromBackend(id) {
+  const res = await fetch(`${API_GAME_URL}?id=${encodeURIComponent(id)}`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data?.id ? data : null;
+}
+
 /* ─── Game factory ───────────────────────────────────────────────────────────── */
 function genId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -780,6 +818,7 @@ function newGame(players, opts = {}) {
     turnScore:     0,
     isBust:        false,
     winner:        -1,
+    updatedAt:     Date.now(),
     startedAt:     Date.now(),
     finishedAt:    null,
     stateHistory:  [],
