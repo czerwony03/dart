@@ -876,8 +876,7 @@ const readActive   = () => { try { return JSON.parse(localStorage.getItem(LS_ACT
 const writeActive  = g  => {
   if (!g) return;
   try {
-    const { stateHistory: _stateHistory, ...persisted } = g;
-    localStorage.setItem(LS_ACTIVE, JSON.stringify(persisted));
+    localStorage.setItem(LS_ACTIVE, JSON.stringify(g));
   } catch {
     /* private mode / quota exceeded — silently ignore autosave */
   }
@@ -916,11 +915,10 @@ function clearGameUrlParam() {
 /* ─── Backend sync helpers ───────────────────────────────────────────────────── */
 function syncToBackend(game) {
   if (!game?.id) return;
-  const { stateHistory: _sh, ...state } = game;
   fetch(API_GAME_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: game.id, state }),
+    body: JSON.stringify({ id: game.id, state: game }),
   }).catch(() => {}); // fire-and-forget — silently ignore offline errors
 }
 
@@ -1566,7 +1564,7 @@ function App() {
         const local = gameRef.current;
         if (!local || local.id !== id) return; // guard: game changed while request was in-flight
         if ((remote.updatedAt ?? 0) > (local.updatedAt ?? 0)) {
-          setGame(prev => ({ ...remote, stateHistory: prev?.stateHistory || [] }));
+          setGame(remote);
         }
       } catch { /* offline — silently ignore */ }
     }, POLL_MS);
@@ -1587,7 +1585,7 @@ function App() {
     if (local?.id === urlId) { setGame(local); setScreen('game'); return; }
     fetchFromBackend(urlId).then(remote => {
       if (!remote?.id) return;
-      setGame({ ...remote, stateHistory: [] });
+      setGame(remote);
       setScreen(remote.phase === 'won' ? 'win' : 'game');
     }).catch(() => {}); // backend offline — silently ignore
   }, []); // only on mount
