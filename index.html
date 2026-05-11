@@ -1355,7 +1355,7 @@ function SetupScreen({ onStart, onBack }) {
   const listId = 'player-name-suggestions';
 
   const updateName = (i, val) => setPlayers(prev => { const p = [...prev]; p[i] = val; return p; });
-  const addPlayer  = ()       => { if (players.length < 4) setPlayers(p => [...p, '']); };
+  const addPlayer  = ()       => setPlayers(p => [...p, '']);
   const delPlayer  = i        => setPlayers(p => p.filter((_, j) => j !== i));
   const handleShuffle = ()    => setPlayers(prev => shufflePlayers(prev));
   const canShuffle = players.map(n => n.trim()).filter(Boolean).length > 1;
@@ -1434,9 +1434,7 @@ function SetupScreen({ onStart, onBack }) {
       </div>
 
       <div className="setup-actions">
-        {players.length < 4 && (
-          <button className="btn btn-gray" onClick={addPlayer}>{t('addPlayer')}</button>
-        )}
+        <button className="btn btn-gray" onClick={addPlayer}>{t('addPlayer')}</button>
         <button className="btn btn-gray"
                 aria-label={t('shufflePlayers')}
                 onClick={handleShuffle}
