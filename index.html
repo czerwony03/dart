@@ -822,6 +822,7 @@ const VALID_LANGS   = ['en', 'pl'];
 const MAX_PLAYERS   = 8;
 const API_GAME_URL  = 'https://redtm.pl/dart/game.php';
 const POLL_MS       = 1000;
+const TURN_VIBRATION_DURATION_MS = 120;
 
 /* ─── Translations ───────────────────────────────────────────────────────────── */
 const TRANSLATIONS = {
@@ -1159,6 +1160,12 @@ function playerAvg(g, i) {
   const pointsScored    = g.startScore - g.scores[i];
   const roundsCompleted = i > g.winner ? g.round - 1 : g.round;
   return roundsCompleted > 0 ? (pointsScored / roundsCompleted).toFixed(1) : '—';
+}
+
+function isValidPlayerIndex(playerIndex, game) {
+  return Number.isInteger(playerIndex)
+    && playerIndex >= 0
+    && playerIndex < (Array.isArray(game?.players) ? game.players.length : 0);
 }
 
 /* ─── Date formatting ────────────────────────────────────────────────────────── */
@@ -1538,7 +1545,7 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
 
   const cp     = game.currentPlayer;
   const locked = game.darts.length >= 3 || game.isBust;
-  const requiresPlayerSelection = !Number.isInteger(selectedPlayer) || selectedPlayer < 0 || selectedPlayer >= game.players.length;
+  const requiresPlayerSelection = !isValidPlayerIndex(selectedPlayer, game);
   const controlsLocked = locked || requiresPlayerSelection;
   const canUndo = !(game.darts.length === 0 && !game.isBust && !(game.stateHistory && game.stateHistory.length > 0)) && !requiresPlayerSelection;
 
@@ -1929,8 +1936,7 @@ function App() {
   useEffect(() => {
     if (screen !== 'game' || !game?.id) return;
     const storedPlayer = readPlayerIdentity(game.id);
-    const isValidPlayer = Number.isInteger(storedPlayer) && storedPlayer >= 0 && storedPlayer < game.players.length;
-    setSelectedPlayer(isValidPlayer ? storedPlayer : null);
+    setSelectedPlayer(isValidPlayerIndex(storedPlayer, game) ? storedPlayer : null);
   }, [game?.id, game?.players.length, screen]);
 
   const lastVibrationRef = useRef('');
@@ -1939,12 +1945,12 @@ function App() {
   }, [screen]);
   useEffect(() => {
     if (screen !== 'game' || game?.phase !== 'playing') return;
-    if (!Number.isInteger(selectedPlayer) || selectedPlayer !== game.currentPlayer) return;
-    const vibrationKey = `${game.id}:${game.round}:${game.currentPlayer}`;
-    if (lastVibrationRef.current === vibrationKey) return;
-    lastVibrationRef.current = vibrationKey;
+    if (!isValidPlayerIndex(selectedPlayer, game) || selectedPlayer !== game.currentPlayer) return;
+    const turnStateKey = `${game.id}:${game.round}:${game.currentPlayer}`;
+    if (lastVibrationRef.current === turnStateKey) return;
+    lastVibrationRef.current = turnStateKey;
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-      navigator.vibrate(120);
+      navigator.vibrate(TURN_VIBRATION_DURATION_MS);
     }
   }, [game?.currentPlayer, game?.id, game?.phase, game?.round, screen, selectedPlayer]);
 
@@ -1984,7 +1990,7 @@ function App() {
   const handleViewGame = useCallback(g => { setGame(g); setScreen('view'); }, []);
 
   const handleSelectPlayer = useCallback(playerIndex => {
-    if (!game?.id || !Number.isInteger(playerIndex) || playerIndex < 0 || playerIndex >= game.players.length) return;
+    if (!game?.id || !isValidPlayerIndex(playerIndex, game)) return;
     writePlayerIdentity(game.id, playerIndex);
     setSelectedPlayer(playerIndex);
   }, [game]);
