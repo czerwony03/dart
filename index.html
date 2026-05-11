@@ -1890,6 +1890,7 @@ function App() {
     if (!id) return;
     const now = Date.now();
     if (refreshInFlightRef.current) return;
+    // Coalesce near-simultaneous wake events (focus/visibility/online) without affecting 1s polling cadence.
     if (now - lastRefreshAtRef.current < REFRESH_THROTTLE_MS) return;
     refreshInFlightRef.current = true;
     lastRefreshAtRef.current = now;
