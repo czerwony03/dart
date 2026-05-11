@@ -1883,8 +1883,15 @@ function App() {
   /* Poll backend every POLL_MS when a game is active — apply if remote is newer */
   const gameRef = useRef(game);
   useEffect(() => { gameRef.current = game; }, [game]);
+  const refreshInFlightRef = useRef(false);
+  const lastRefreshAtRef = useRef(0);
   const refreshFromBackend = useCallback(async id => {
     if (!id) return;
+    const now = Date.now();
+    if (refreshInFlightRef.current) return;
+    if (now - lastRefreshAtRef.current < 250) return;
+    refreshInFlightRef.current = true;
+    lastRefreshAtRef.current = now;
     try {
       const remote = await fetchFromBackend(id);
       if (!remote?.id || remote.id !== id) return;
@@ -1896,6 +1903,9 @@ function App() {
         setGame(remote);
       }
     } catch { /* offline — silently ignore */ }
+    finally {
+      refreshInFlightRef.current = false;
+    }
   }, [followSuccessorGame]);
   useEffect(() => {
     if (!game?.id || (screen !== 'game' && screen !== 'win')) return;
