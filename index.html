@@ -823,6 +823,7 @@ const MAX_PLAYERS   = 8;
 const API_GAME_URL  = 'https://redtm.pl/dart/game.php';
 const POLL_MS       = 1000;
 const TURN_VIBRATION_MS = 120;
+const NOOP = () => {};
 
 /* ─── Translations ───────────────────────────────────────────────────────────── */
 const TRANSLATIONS = {
@@ -1167,6 +1168,10 @@ function isValidPlayerIndex(playerIndex, game) {
   return Number.isInteger(playerIndex)
     && playerIndex >= 0
     && playerIndex < playerCount;
+}
+
+function getTurnStateKey(game) {
+  return `${game.id}:${game.round}:${game.currentPlayer}`;
 }
 
 /* ─── Date formatting ────────────────────────────────────────────────────────── */
@@ -1549,6 +1554,7 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
   const hasValidPlayerSelection = isValidPlayerIndex(selectedPlayer, game);
   const controlsLocked = locked || !hasValidPlayerSelection;
   const canUndo = !(game.darts.length === 0 && !game.isBust && !(game.stateHistory && game.stateHistory.length > 0)) && hasValidPlayerSelection;
+  const handleBoardHit = controlsLocked ? NOOP : onDartHit;
 
   const nextLabel = (game.darts.length >= 3 || game.isBust)
     ? t('nextPlayer')
@@ -1650,7 +1656,7 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
       </div>
 
       <div className="dartboard-wrap">
-        <Dartboard onHit={controlsLocked ? () => {} : onDartHit} />
+        <Dartboard onHit={handleBoardHit} />
       </div>
 
       <div className="game-bottom">
@@ -1947,7 +1953,7 @@ function App() {
   useEffect(() => {
     if (screen !== 'game' || game?.phase !== 'playing') return;
     if (!isValidPlayerIndex(selectedPlayer, game) || selectedPlayer !== game.currentPlayer) return;
-    const turnStateKey = `${game.id}:${game.round}:${game.currentPlayer}`;
+    const turnStateKey = getTurnStateKey(game);
     if (lastVibrationRef.current === turnStateKey) return;
     lastVibrationRef.current = turnStateKey;
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
