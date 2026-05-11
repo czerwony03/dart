@@ -921,6 +921,8 @@ const TRANSLATIONS = {
     choosePlayer:     'Choose your player from the list.',
     refreshNow:       'Refresh now',
     refreshingNow:    'Refreshing now',
+    refreshComplete:  'Refresh complete',
+    refreshQueued:    'Refresh queued',
     refreshQueueFull: 'Refresh is already queued',
   },
   pl: {
@@ -983,6 +985,8 @@ const TRANSLATIONS = {
     choosePlayer:     'Wybierz siebie z listy graczy.',
     refreshNow:       'Odśwież teraz',
     refreshingNow:    'Odświeżanie',
+    refreshComplete:  'Odświeżono',
+    refreshQueued:    'Odświeżanie dodane do kolejki',
     refreshQueueFull: 'Odświeżanie jest już w kolejce',
   },
 };
@@ -1591,7 +1595,16 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
   const [manualVal, setManualVal] = useState('');
   const [manualErr, setManualErr] = useState(false);
   const [historyModal, setHistoryModal] = useState(null);
+  const [liveRefreshMsg, setLiveRefreshMsg] = useState('');
   const inputRef = useRef(null);
+  const wasRefreshingRef = useRef(false);
+
+  useEffect(() => {
+    const wasRefreshing = wasRefreshingRef.current;
+    if (refreshing && !wasRefreshing) setLiveRefreshMsg(t('refreshingNow'));
+    if (!refreshing && wasRefreshing) setLiveRefreshMsg(t('refreshComplete'));
+    wasRefreshingRef.current = refreshing;
+  }, [refreshing, t]);
 
   const cp     = game.currentPlayer;
   const locked = game.darts.length >= 3 || game.isBust;
@@ -1685,7 +1698,7 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
                   aria-busy={refreshing}>
             <span className={`refresh-glyph${refreshing ? ' refresh-glyph-spinning' : ''}`} aria-hidden="true">⟳</span>
           </button>
-          <span className="sr-only" aria-live="polite">{refreshing ? t('refreshingNow') : ''}</span>
+          <span className="sr-only" aria-live="polite">{liveRefreshMsg}</span>
           <button className="btn btn-icon share-icon" onClick={onShare} aria-label={t('shareGame')}>⎋</button>
           <button className="btn btn-icon home-icon" onClick={onHome} aria-label={t('goHome')}>⌂</button>
         </div>
@@ -1949,6 +1962,7 @@ function App() {
           return;
         }
         forceRefreshPendingCountRef.current += 1;
+        showToast(t('refreshQueued'));
       }
       return;
     }
