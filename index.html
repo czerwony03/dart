@@ -1538,8 +1538,9 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
 
   const cp     = game.currentPlayer;
   const locked = game.darts.length >= 3 || game.isBust;
-  const needsIdentity = !Number.isInteger(selectedPlayer) || selectedPlayer < 0 || selectedPlayer >= game.players.length;
-  const controlsLocked = locked || needsIdentity;
+  const requiresPlayerSelection = !Number.isInteger(selectedPlayer) || selectedPlayer < 0 || selectedPlayer >= game.players.length;
+  const controlsLocked = locked || requiresPlayerSelection;
+  const canUndo = !(game.darts.length === 0 && !game.isBust && !(game.stateHistory && game.stateHistory.length > 0)) && !requiresPlayerSelection;
 
   const nextLabel = (game.darts.length >= 3 || game.isBust)
     ? t('nextPlayer')
@@ -1696,15 +1697,15 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
 
         <div className="action-row">
           <button className="btn btn-gray" style={{ flex: 1 }}
-                  disabled={needsIdentity || (game.darts.length === 0 && !game.isBust && !(game.stateHistory && game.stateHistory.length > 0))}
+                  disabled={!canUndo}
                   onClick={onUndo}>{t('undo')}</button>
           <button className="btn btn-red" style={{ flex: 2 }}
-                  disabled={needsIdentity}
+                  disabled={requiresPlayerSelection}
                   onClick={onAdvance}>{nextLabel}</button>
         </div>
       </div>
 
-      {needsIdentity && (
+      {requiresPlayerSelection && (
         <div className="history-modal-backdrop">
           <div className="identity-modal" role="dialog" aria-modal="true" aria-labelledby="identity-modal-title">
             <div id="identity-modal-title" className="identity-modal-title">{t('whoAreYou')}</div>
@@ -1939,7 +1940,7 @@ function App() {
   useEffect(() => {
     if (screen !== 'game' || game?.phase !== 'playing') return;
     if (!Number.isInteger(selectedPlayer) || selectedPlayer !== game.currentPlayer) return;
-    const vibrationKey = `${game.id}:${game.round}:${game.currentPlayer}:${selectedPlayer}`;
+    const vibrationKey = `${game.id}:${game.round}:${game.currentPlayer}`;
     if (lastVibrationRef.current === vibrationKey) return;
     lastVibrationRef.current = vibrationKey;
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
