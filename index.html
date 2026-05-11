@@ -822,7 +822,7 @@ const VALID_LANGS   = ['en', 'pl'];
 const MAX_PLAYERS   = 8;
 const API_GAME_URL  = 'https://redtm.pl/dart/game.php';
 const POLL_MS       = 1000;
-const TURN_VIBRATION_DURATION_MS = 120;
+const TURN_VIBRATION_MS = 120;
 
 /* ─── Translations ───────────────────────────────────────────────────────────── */
 const TRANSLATIONS = {
@@ -1163,9 +1163,10 @@ function playerAvg(g, i) {
 }
 
 function isValidPlayerIndex(playerIndex, game) {
+  const playerCount = game?.players?.length ?? 0;
   return Number.isInteger(playerIndex)
     && playerIndex >= 0
-    && playerIndex < (Array.isArray(game?.players) ? game.players.length : 0);
+    && playerIndex < playerCount;
 }
 
 /* ─── Date formatting ────────────────────────────────────────────────────────── */
@@ -1545,9 +1546,9 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
 
   const cp     = game.currentPlayer;
   const locked = game.darts.length >= 3 || game.isBust;
-  const requiresPlayerSelection = !isValidPlayerIndex(selectedPlayer, game);
-  const controlsLocked = locked || requiresPlayerSelection;
-  const canUndo = !(game.darts.length === 0 && !game.isBust && !(game.stateHistory && game.stateHistory.length > 0)) && !requiresPlayerSelection;
+  const hasValidPlayerSelection = isValidPlayerIndex(selectedPlayer, game);
+  const controlsLocked = locked || !hasValidPlayerSelection;
+  const canUndo = !(game.darts.length === 0 && !game.isBust && !(game.stateHistory && game.stateHistory.length > 0)) && hasValidPlayerSelection;
 
   const nextLabel = (game.darts.length >= 3 || game.isBust)
     ? t('nextPlayer')
@@ -1707,12 +1708,12 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
                   disabled={!canUndo}
                   onClick={onUndo}>{t('undo')}</button>
           <button className="btn btn-red" style={{ flex: 2 }}
-                  disabled={requiresPlayerSelection}
+                  disabled={!hasValidPlayerSelection}
                   onClick={onAdvance}>{nextLabel}</button>
         </div>
       </div>
 
-      {requiresPlayerSelection && (
+      {!hasValidPlayerSelection && (
         <div className="history-modal-backdrop">
           <div className="identity-modal" role="dialog" aria-modal="true" aria-labelledby="identity-modal-title">
             <div id="identity-modal-title" className="identity-modal-title">{t('whoAreYou')}</div>
@@ -1937,7 +1938,7 @@ function App() {
     if (screen !== 'game' || !game?.id) return;
     const storedPlayer = readPlayerIdentity(game.id);
     setSelectedPlayer(isValidPlayerIndex(storedPlayer, game) ? storedPlayer : null);
-  }, [game?.id, game?.players.length, screen]);
+  }, [game?.id, game?.players?.length, screen]);
 
   const lastVibrationRef = useRef('');
   useEffect(() => {
@@ -1950,7 +1951,7 @@ function App() {
     if (lastVibrationRef.current === turnStateKey) return;
     lastVibrationRef.current = turnStateKey;
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-      navigator.vibrate(TURN_VIBRATION_DURATION_MS);
+      navigator.vibrate(TURN_VIBRATION_MS);
     }
   }, [game?.currentPlayer, game?.id, game?.phase, game?.round, screen, selectedPlayer]);
 
