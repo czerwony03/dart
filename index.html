@@ -1921,14 +1921,17 @@ function App() {
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') triggerRefresh();
     };
+    const onPageShow = event => {
+      if (event?.persisted) triggerRefresh();
+    };
     document.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('focus', triggerRefresh);
-    window.addEventListener('pageshow', triggerRefresh);
+    window.addEventListener('pageshow', onPageShow);
     window.addEventListener('online', triggerRefresh);
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('focus', triggerRefresh);
-      window.removeEventListener('pageshow', triggerRefresh);
+      window.removeEventListener('pageshow', onPageShow);
       window.removeEventListener('online', triggerRefresh);
     };
   }, [game?.id, screen, refreshFromBackend]);
