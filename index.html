@@ -822,6 +822,7 @@ const VALID_LANGS   = ['en', 'pl'];
 const MAX_PLAYERS   = 8;
 const API_GAME_URL  = 'https://redtm.pl/dart/game.php';
 const POLL_MS       = 1000;
+const REFRESH_THROTTLE_MS = 250;
 const TURN_VIBRATION_MS = 120;
 
 /* ─── Translations ───────────────────────────────────────────────────────────── */
@@ -1883,25 +1884,58 @@ function App() {
   /* Poll backend every POLL_MS when a game is active — apply if remote is newer */
   const gameRef = useRef(game);
   useEffect(() => { gameRef.current = game; }, [game]);
+  const refreshInFlightRef = useRef(false);
+  const lastRefreshAtRef = useRef(0);
+  const refreshFromBackend = useCallback(async id => {
+    if (!id) return;
+    const now = Date.now();
+    if (refreshInFlightRef.current) return;
+    // Coalesce near-simultaneous wake events (focus/visibility/online) without affecting 1s polling cadence.
+    if (now - lastRefreshAtRef.current < REFRESH_THROTTLE_MS) return;
+    refreshInFlightRef.current = true;
+    lastRefreshAtRef.current = now;
+    try {
+      const remote = await fetchFromBackend(id);
+      if (!remote?.id || remote.id !== id) return;
+      const local = gameRef.current;
+      if (!local || local.id !== id) return; // guard: game changed while request was in-flight
+      // If finished game points to a successor, switch to that game instead of applying old state.
+      if (await followSuccessorGame(id, remote.nextGameId)) return;
+      if ((remote.updatedAt ?? 0) > (local.updatedAt ?? 0)) {
+        setGame(remote);
+      }
+    } catch { /* offline — silently ignore */ }
+    finally {
+      refreshInFlightRef.current = false;
+    }
+  }, [followSuccessorGame]);
   useEffect(() => {
     if (!game?.id || (screen !== 'game' && screen !== 'win')) return;
     const id = game.id;
-    const iv = setInterval(async () => {
-      try {
-        const remote = await fetchFromBackend(id);
-        if (!remote?.id || remote.id !== id) return;
-        const local = gameRef.current;
-        if (!local || local.id !== id) return; // guard: game changed while request was in-flight
-        // If finished game points to a successor, switch to that game instead of applying old state.
-        if (await followSuccessorGame(id, remote.nextGameId)) return;
-        if ((remote.updatedAt ?? 0) > (local.updatedAt ?? 0)) {
-          setGame(remote);
-        }
-      } catch { /* offline — silently ignore */ }
-    }, POLL_MS);
+    const iv = setInterval(() => { refreshFromBackend(id); }, POLL_MS);
     return () => clearInterval(iv);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game?.id, screen]);
+  }, [game?.id, screen, refreshFromBackend]);
+  useEffect(() => {
+    if (!game?.id || (screen !== 'game' && screen !== 'win')) return;
+    const id = game.id;
+    const triggerRefresh = () => { refreshFromBackend(id); };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') triggerRefresh();
+    };
+    const onPageShow = event => {
+      if (event?.persisted) triggerRefresh();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', triggerRefresh);
+    window.addEventListener('pageshow', onPageShow);
+    window.addEventListener('online', triggerRefresh);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', triggerRefresh);
+      window.removeEventListener('pageshow', onPageShow);
+      window.removeEventListener('online', triggerRefresh);
+    };
+  }, [game?.id, screen, refreshFromBackend]);
 
   /* On mount: load game from ?game=<id> URL param (offline-safe) */
   useEffect(() => {
