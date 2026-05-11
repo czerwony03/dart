@@ -823,7 +823,6 @@ const MAX_PLAYERS   = 8;
 const API_GAME_URL  = 'https://redtm.pl/dart/game.php';
 const POLL_MS       = 1000;
 const TURN_VIBRATION_MS = 120;
-const NOOP = () => {};
 
 /* ─── Translations ───────────────────────────────────────────────────────────── */
 const TRANSLATIONS = {
@@ -1558,7 +1557,10 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
   const hasValidPlayerSelection = isValidPlayerIndex(selectedPlayer, game);
   const controlsLocked = locked || !hasValidPlayerSelection;
   const canUndo = hasValidPlayerSelection && hasUndoableState(game);
-  const handleBoardHit = controlsLocked ? NOOP : onDartHit;
+  const handleBoardHit = useCallback((...args) => {
+    if (controlsLocked) return;
+    onDartHit(...args);
+  }, [controlsLocked, onDartHit]);
 
   const nextLabel = (game.darts.length >= 3 || game.isBust)
     ? t('nextPlayer')
@@ -1950,9 +1952,9 @@ function App() {
     setSelectedPlayer(isValidPlayerIndex(storedPlayer, game) ? storedPlayer : null);
   }, [game?.id, game?.players?.length, screen]);
 
-  const lastVibrationRef = useRef('');
+  const lastVibrationRef = useRef(null);
   useEffect(() => {
-    if (screen !== 'game') lastVibrationRef.current = '';
+    if (screen !== 'game') lastVibrationRef.current = null;
   }, [screen]);
   useEffect(() => {
     if (screen !== 'game' || game?.phase !== 'playing') return;
