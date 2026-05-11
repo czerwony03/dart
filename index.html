@@ -332,6 +332,39 @@
 
     .history-icon:hover { color: #d2bcff; background: #1a1030; }
 
+    .refresh-icon {
+      background: transparent;
+      color: #6ec5ff;
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      font-size: 1rem;
+      border-radius: 8px;
+    }
+
+    .refresh-icon:hover { color: #9fdbff; background: #0a1a2e; }
+
+    .refresh-glyph { display: inline-block; line-height: 1; }
+
+    .refresh-glyph-spinning { animation: spin-refresh 0.8s linear infinite; }
+
+    @keyframes spin-refresh {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     /* Scoreboard */
     .scoreboard {
       display: flex;
@@ -823,6 +856,9 @@ const MAX_PLAYERS   = 8;
 const API_GAME_URL  = 'https://redtm.pl/dart/game.php';
 const POLL_MS       = 1000;
 const REFRESH_THROTTLE_MS = 250;
+const MAX_FORCE_REFRESH_QUEUE = 3;
+const LIVE_MESSAGE_DURATION_MS = 1500;
+const NEXT_TICK_MS = 0;
 const TURN_VIBRATION_MS = 120;
 
 /* ─── Translations ───────────────────────────────────────────────────────────── */
@@ -885,6 +921,11 @@ const TRANSLATIONS = {
     syncOffline:      'Sync offline',
     whoAreYou:        'Who are you?',
     choosePlayer:     'Choose your player from the list.',
+    refreshNow:       'Refresh now',
+    refreshingNow:    'Refreshing now',
+    refreshComplete:  'Refresh complete',
+    refreshQueued:    'Refresh queued',
+    refreshQueueFull: 'Refresh is already queued',
   },
   pl: {
     inProgress:       'W trakcie',
@@ -944,6 +985,11 @@ const TRANSLATIONS = {
     syncOffline:      'Synchronizacja offline',
     whoAreYou:        'Kim jesteś?',
     choosePlayer:     'Wybierz siebie z listy graczy.',
+    refreshNow:       'Odśwież teraz',
+    refreshingNow:    'Odświeżanie',
+    refreshComplete:  'Odświeżono',
+    refreshQueued:    'Odświeżanie dodane do kolejki',
+    refreshQueueFull: 'Odświeżanie jest już w kolejce',
   },
 };
 
@@ -1546,12 +1592,26 @@ function SetupScreen({ onStart, onBack }) {
 }
 
 /* ─── GameScreen ─────────────────────────────────────────────────────────────── */
-function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, onAdvance, onHome, onShare }) {
+function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, onAdvance, onHome, onShare, onForceRefresh, refreshing }) {
   const { t } = useLang();
   const [manualVal, setManualVal] = useState('');
   const [manualErr, setManualErr] = useState(false);
   const [historyModal, setHistoryModal] = useState(null);
+  const [liveRefreshMsg, setLiveRefreshMsg] = useState('');
   const inputRef = useRef(null);
+  const wasRefreshingRef = useRef(false);
+
+  useEffect(() => {
+    const wasRefreshing = wasRefreshingRef.current;
+    if (refreshing && !wasRefreshing) setLiveRefreshMsg(t('refreshingNow'));
+    if (!refreshing && wasRefreshing) setLiveRefreshMsg(t('refreshComplete'));
+    wasRefreshingRef.current = refreshing;
+  }, [refreshing, t]);
+  useEffect(() => {
+    if (!liveRefreshMsg) return undefined;
+    const timeoutId = setTimeout(() => setLiveRefreshMsg(''), LIVE_MESSAGE_DURATION_MS);
+    return () => clearTimeout(timeoutId);
+  }, [liveRefreshMsg]);
 
   const cp     = game.currentPlayer;
   const locked = game.darts.length >= 3 || game.isBust;
@@ -1638,6 +1698,14 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
                   type="button"
                   onClick={() => setHistoryModal('all')}
                   aria-label={t('viewAllHistory')}>☰</button>
+          <button className="btn btn-icon refresh-icon"
+                  type="button"
+                  onClick={onForceRefresh}
+                  aria-label={t('refreshNow')}
+                  aria-busy={refreshing}>
+            <span className={`refresh-glyph${refreshing ? ' refresh-glyph-spinning' : ''}`} aria-hidden="true">⟳</span>
+          </button>
+          <span className="sr-only" aria-live="polite">{liveRefreshMsg}</span>
           <button className="btn btn-icon share-icon" onClick={onShare} aria-label={t('shareGame')}>⎋</button>
           <button className="btn btn-icon home-icon" onClick={onHome} aria-label={t('goHome')}>⌂</button>
         </div>
@@ -1838,6 +1906,7 @@ function App() {
   const [history, setHistory] = useState(() => readHistory());
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [toastMsg, showToast] = useToast();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [lang, setLangState]  = useState(() => {
     const urlLang = getLangFromUrl();
     if (urlLang) return urlLang;
@@ -1885,15 +1954,31 @@ function App() {
   const gameRef = useRef(game);
   useEffect(() => { gameRef.current = game; }, [game]);
   const refreshInFlightRef = useRef(false);
+  const forceRefreshPendingCountRef = useRef(0);
+  useEffect(() => { forceRefreshPendingCountRef.current = 0; }, [game?.id]);
   const lastRefreshAtRef = useRef(0);
-  const refreshFromBackend = useCallback(async id => {
+  const refreshFromBackend = useCallback(async (id, options = {}) => {
     if (!id) return;
+    const force = Boolean(options.force);
+    const consumeQueued = Boolean(options.consumeQueued);
     const now = Date.now();
-    if (refreshInFlightRef.current) return;
+    if (refreshInFlightRef.current) {
+      if (force) {
+        if (consumeQueued) return;
+        if (forceRefreshPendingCountRef.current >= MAX_FORCE_REFRESH_QUEUE) {
+          showToast(t('refreshQueueFull'));
+          return;
+        }
+        forceRefreshPendingCountRef.current += 1;
+        showToast(t('refreshQueued'));
+      }
+      return;
+    }
     // Coalesce near-simultaneous wake events (focus/visibility/online) without affecting 1s polling cadence.
-    if (now - lastRefreshAtRef.current < REFRESH_THROTTLE_MS) return;
+    if (!force && now - lastRefreshAtRef.current < REFRESH_THROTTLE_MS) return;
     refreshInFlightRef.current = true;
     lastRefreshAtRef.current = now;
+    setIsRefreshing(true);
     try {
       const remote = await fetchFromBackend(id);
       if (!remote?.id || remote.id !== id) return;
@@ -1907,8 +1992,15 @@ function App() {
     } catch { /* offline — silently ignore */ }
     finally {
       refreshInFlightRef.current = false;
+      setIsRefreshing(false);
+      if (forceRefreshPendingCountRef.current > 0 && gameRef.current?.id === id) {
+        forceRefreshPendingCountRef.current -= 1;
+        setTimeout(() => {
+          refreshFromBackend(id, { force: true, consumeQueued: true });
+        }, NEXT_TICK_MS);
+      }
     }
-  }, [followSuccessorGame]);
+  }, [followSuccessorGame, showToast, t]);
   useEffect(() => {
     if (!game?.id || (screen !== 'game' && screen !== 'win')) return;
     const id = game.id;
@@ -2151,6 +2243,8 @@ function App() {
             onAdvance={advancePlayer}
             onHome={goHome}
             onShare={handleShare}
+            onForceRefresh={() => refreshFromBackend(game.id, { force: true })}
+            refreshing={isRefreshing}
           />
         )}
         {screen === 'win' && game && (
