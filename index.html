@@ -908,7 +908,7 @@ const TRANSLATIONS = {
     whoAreYou:        'Who are you?',
     choosePlayer:     'Choose your player from the list.',
     refreshNow:       'Refresh now',
-    refreshingNow:    'Refreshing now',
+    refreshQueueFull: 'Refresh is already queued',
   },
   pl: {
     inProgress:       'W trakcie',
@@ -969,7 +969,7 @@ const TRANSLATIONS = {
     whoAreYou:        'Kim jesteś?',
     choosePlayer:     'Wybierz siebie z listy graczy.',
     refreshNow:       'Odśwież teraz',
-    refreshingNow:    'Odświeżanie',
+    refreshQueueFull: 'Odświeżanie jest już w kolejce',
   },
 };
 
@@ -1667,7 +1667,7 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
           <button className="btn btn-icon refresh-icon"
                   type="button"
                   onClick={onForceRefresh}
-                  aria-label={refreshing ? t('refreshingNow') : t('refreshNow')}
+                  aria-label={t('refreshNow')}
                   aria-busy={refreshing ? 'true' : 'false'}>
             <span className={`refresh-glyph${refreshing ? ' refresh-glyph-spinning' : ''}`} aria-hidden="true">⟳</span>
           </button>
@@ -1926,7 +1926,13 @@ function App() {
     const force = Boolean(options.force);
     const now = Date.now();
     if (refreshInFlightRef.current) {
-      if (force) forceRefreshPendingCountRef.current = Math.min(forceRefreshPendingCountRef.current + 1, MAX_FORCE_REFRESH_QUEUE);
+      if (force) {
+        if (forceRefreshPendingCountRef.current >= MAX_FORCE_REFRESH_QUEUE) {
+          showToast(t('refreshQueueFull'));
+          return;
+        }
+        forceRefreshPendingCountRef.current += 1;
+      }
       return;
     }
     // Coalesce near-simultaneous wake events (focus/visibility/online) without affecting 1s polling cadence.
@@ -1948,12 +1954,13 @@ function App() {
     finally {
       refreshInFlightRef.current = false;
       setIsRefreshing(false);
-      if (forceRefreshPendingCountRef.current > 0 && gameRef.current?.id === id) {
+      const retryId = gameRef.current?.id;
+      if (forceRefreshPendingCountRef.current > 0 && retryId) {
         forceRefreshPendingCountRef.current -= 1;
-        refreshFromBackend(id, { force: true });
+        refreshFromBackend(retryId, { force: true });
       }
     }
-  }, [followSuccessorGame]);
+  }, [followSuccessorGame, showToast, t]);
   useEffect(() => {
     if (!game?.id || (screen !== 'game' && screen !== 'win')) return;
     const id = game.id;
