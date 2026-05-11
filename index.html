@@ -1605,6 +1605,11 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
     if (!refreshing && wasRefreshing) setLiveRefreshMsg(t('refreshComplete'));
     wasRefreshingRef.current = refreshing;
   }, [refreshing, t]);
+  useEffect(() => {
+    if (!liveRefreshMsg) return undefined;
+    const timeoutId = setTimeout(() => setLiveRefreshMsg(''), 1500);
+    return () => clearTimeout(timeoutId);
+  }, [liveRefreshMsg]);
 
   const cp     = game.currentPlayer;
   const locked = game.darts.length >= 3 || game.isBust;
@@ -1987,7 +1992,9 @@ function App() {
       setIsRefreshing(false);
       if (forceRefreshPendingCountRef.current > 0 && gameRef.current?.id === id) {
         forceRefreshPendingCountRef.current -= 1;
-        refreshFromBackend(id, { force: true, consumeQueued: true });
+        setTimeout(() => {
+          refreshFromBackend(id, { force: true, consumeQueued: true });
+        }, 0);
       }
     }
   }, [followSuccessorGame, showToast, t]);
