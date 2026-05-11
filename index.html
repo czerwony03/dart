@@ -844,6 +844,7 @@ const MAX_PLAYERS   = 8;
 const API_GAME_URL  = 'https://redtm.pl/dart/game.php';
 const POLL_MS       = 1000;
 const REFRESH_THROTTLE_MS = 250;
+const MAX_FORCE_REFRESH_QUEUE = 3;
 const TURN_VIBRATION_MS = 120;
 
 /* ─── Translations ───────────────────────────────────────────────────────────── */
@@ -1925,7 +1926,7 @@ function App() {
     const force = Boolean(options.force);
     const now = Date.now();
     if (refreshInFlightRef.current) {
-      if (force) forceRefreshPendingCountRef.current += 1;
+      if (force) forceRefreshPendingCountRef.current = Math.min(forceRefreshPendingCountRef.current + 1, MAX_FORCE_REFRESH_QUEUE);
       return;
     }
     // Coalesce near-simultaneous wake events (focus/visibility/online) without affecting 1s polling cadence.
