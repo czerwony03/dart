@@ -857,6 +857,8 @@ const API_GAME_URL  = 'https://redtm.pl/dart/game.php';
 const POLL_MS       = 1000;
 const REFRESH_THROTTLE_MS = 250;
 const MAX_FORCE_REFRESH_QUEUE = 3;
+const LIVE_MESSAGE_DURATION_MS = 1500;
+const NEXT_TICK_MS = 0;
 const TURN_VIBRATION_MS = 120;
 
 /* ─── Translations ───────────────────────────────────────────────────────────── */
@@ -1607,7 +1609,7 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
   }, [refreshing, t]);
   useEffect(() => {
     if (!liveRefreshMsg) return undefined;
-    const timeoutId = setTimeout(() => setLiveRefreshMsg(''), 1500);
+    const timeoutId = setTimeout(() => setLiveRefreshMsg(''), LIVE_MESSAGE_DURATION_MS);
     return () => clearTimeout(timeoutId);
   }, [liveRefreshMsg]);
 
@@ -1953,6 +1955,7 @@ function App() {
   useEffect(() => { gameRef.current = game; }, [game]);
   const refreshInFlightRef = useRef(false);
   const forceRefreshPendingCountRef = useRef(0);
+  useEffect(() => { forceRefreshPendingCountRef.current = 0; }, [game?.id]);
   const lastRefreshAtRef = useRef(0);
   const refreshFromBackend = useCallback(async (id, options = {}) => {
     if (!id) return;
@@ -1994,7 +1997,7 @@ function App() {
         forceRefreshPendingCountRef.current -= 1;
         setTimeout(() => {
           refreshFromBackend(id, { force: true, consumeQueued: true });
-        }, 0);
+        }, NEXT_TICK_MS);
       }
     }
   }, [followSuccessorGame, showToast, t]);
