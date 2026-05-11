@@ -353,6 +353,18 @@
       to { transform: rotate(360deg); }
     }
 
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     /* Scoreboard */
     .scoreboard {
       display: flex;
@@ -908,6 +920,7 @@ const TRANSLATIONS = {
     whoAreYou:        'Who are you?',
     choosePlayer:     'Choose your player from the list.',
     refreshNow:       'Refresh now',
+    refreshingNow:    'Refreshing now',
     refreshQueueFull: 'Refresh is already queued',
   },
   pl: {
@@ -969,6 +982,7 @@ const TRANSLATIONS = {
     whoAreYou:        'Kim jesteś?',
     choosePlayer:     'Wybierz siebie z listy graczy.',
     refreshNow:       'Odśwież teraz',
+    refreshingNow:    'Odświeżanie',
     refreshQueueFull: 'Odświeżanie jest już w kolejce',
   },
 };
@@ -1671,6 +1685,7 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
                   aria-busy={refreshing}>
             <span className={`refresh-glyph${refreshing ? ' refresh-glyph-spinning' : ''}`} aria-hidden="true">⟳</span>
           </button>
+          <span className="sr-only" aria-live="polite">{refreshing ? t('refreshingNow') : ''}</span>
           <button className="btn btn-icon share-icon" onClick={onShare} aria-label={t('shareGame')}>⎋</button>
           <button className="btn btn-icon home-icon" onClick={onHome} aria-label={t('goHome')}>⌂</button>
         </div>
@@ -1956,10 +1971,9 @@ function App() {
     finally {
       refreshInFlightRef.current = false;
       setIsRefreshing(false);
-      const retryId = gameRef.current?.id;
-      if (forceRefreshPendingCountRef.current > 0 && retryId) {
+      if (forceRefreshPendingCountRef.current > 0 && gameRef.current?.id === id) {
         forceRefreshPendingCountRef.current -= 1;
-        refreshFromBackend(retryId, { force: true, consumeQueued: true });
+        refreshFromBackend(id, { force: true, consumeQueued: true });
       }
     }
   }, [followSuccessorGame, showToast, t]);
