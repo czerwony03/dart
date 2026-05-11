@@ -1668,7 +1668,7 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
                   type="button"
                   onClick={onForceRefresh}
                   aria-label={t('refreshNow')}
-                  aria-busy={refreshing ? 'true' : 'false'}>
+                  aria-busy={refreshing}>
             <span className={`refresh-glyph${refreshing ? ' refresh-glyph-spinning' : ''}`} aria-hidden="true">⟳</span>
           </button>
           <button className="btn btn-icon share-icon" onClick={onShare} aria-label={t('shareGame')}>⎋</button>
@@ -1924,9 +1924,11 @@ function App() {
   const refreshFromBackend = useCallback(async (id, options = {}) => {
     if (!id) return;
     const force = Boolean(options.force);
+    const consumeQueued = Boolean(options.consumeQueued);
     const now = Date.now();
     if (refreshInFlightRef.current) {
       if (force) {
+        if (consumeQueued) return;
         if (forceRefreshPendingCountRef.current >= MAX_FORCE_REFRESH_QUEUE) {
           showToast(t('refreshQueueFull'));
           return;
@@ -1957,7 +1959,7 @@ function App() {
       const retryId = gameRef.current?.id;
       if (forceRefreshPendingCountRef.current > 0 && retryId) {
         forceRefreshPendingCountRef.current -= 1;
-        refreshFromBackend(retryId, { force: true });
+        refreshFromBackend(retryId, { force: true, consumeQueued: true });
       }
     }
   }, [followSuccessorGame, showToast, t]);
