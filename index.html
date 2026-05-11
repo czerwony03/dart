@@ -1883,25 +1883,45 @@ function App() {
   /* Poll backend every POLL_MS when a game is active — apply if remote is newer */
   const gameRef = useRef(game);
   useEffect(() => { gameRef.current = game; }, [game]);
+  const refreshFromBackend = useCallback(async id => {
+    if (!id) return;
+    try {
+      const remote = await fetchFromBackend(id);
+      if (!remote?.id || remote.id !== id) return;
+      const local = gameRef.current;
+      if (!local || local.id !== id) return; // guard: game changed while request was in-flight
+      // If finished game points to a successor, switch to that game instead of applying old state.
+      if (await followSuccessorGame(id, remote.nextGameId)) return;
+      if ((remote.updatedAt ?? 0) > (local.updatedAt ?? 0)) {
+        setGame(remote);
+      }
+    } catch { /* offline — silently ignore */ }
+  }, [followSuccessorGame]);
   useEffect(() => {
     if (!game?.id || (screen !== 'game' && screen !== 'win')) return;
     const id = game.id;
-    const iv = setInterval(async () => {
-      try {
-        const remote = await fetchFromBackend(id);
-        if (!remote?.id || remote.id !== id) return;
-        const local = gameRef.current;
-        if (!local || local.id !== id) return; // guard: game changed while request was in-flight
-        // If finished game points to a successor, switch to that game instead of applying old state.
-        if (await followSuccessorGame(id, remote.nextGameId)) return;
-        if ((remote.updatedAt ?? 0) > (local.updatedAt ?? 0)) {
-          setGame(remote);
-        }
-      } catch { /* offline — silently ignore */ }
-    }, POLL_MS);
+    const iv = setInterval(() => { refreshFromBackend(id); }, POLL_MS);
     return () => clearInterval(iv);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game?.id, screen]);
+  }, [game?.id, screen, refreshFromBackend]);
+  useEffect(() => {
+    if (!game?.id || (screen !== 'game' && screen !== 'win')) return;
+    const id = game.id;
+    const triggerRefresh = () => { refreshFromBackend(id); };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') triggerRefresh();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', triggerRefresh);
+    window.addEventListener('pageshow', triggerRefresh);
+    window.addEventListener('online', triggerRefresh);
+    triggerRefresh();
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', triggerRefresh);
+      window.removeEventListener('pageshow', triggerRefresh);
+      window.removeEventListener('online', triggerRefresh);
+    };
+  }, [game?.id, screen, refreshFromBackend]);
 
   /* On mount: load game from ?game=<id> URL param (offline-safe) */
   useEffect(() => {
