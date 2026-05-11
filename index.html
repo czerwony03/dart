@@ -1174,6 +1174,10 @@ function getTurnStateKey(game) {
   return `${game.id}:${game.round}:${game.currentPlayer}`;
 }
 
+function hasUndoableState(game) {
+  return game.darts.length > 0 || game.isBust || Boolean(game.stateHistory && game.stateHistory.length > 0);
+}
+
 /* ─── Date formatting ────────────────────────────────────────────────────────── */
 function fmtDate(ts) {
   if (!ts) return '';
@@ -1553,7 +1557,7 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
   const locked = game.darts.length >= 3 || game.isBust;
   const hasValidPlayerSelection = isValidPlayerIndex(selectedPlayer, game);
   const controlsLocked = locked || !hasValidPlayerSelection;
-  const canUndo = !(game.darts.length === 0 && !game.isBust && !(game.stateHistory && game.stateHistory.length > 0)) && hasValidPlayerSelection;
+  const canUndo = hasValidPlayerSelection && hasUndoableState(game);
   const handleBoardHit = controlsLocked ? NOOP : onDartHit;
 
   const nextLabel = (game.darts.length >= 3 || game.isBust)
@@ -1727,7 +1731,7 @@ function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, o
             <div className="identity-player-list">
               {game.players.map((name, i) => (
                 <button
-                  key={`${name}-${i}`}
+                  key={i}
                   type="button"
                   className="btn identity-player-btn"
                   onClick={() => onSelectPlayer(i)}>
@@ -1956,7 +1960,7 @@ function App() {
     const turnStateKey = getTurnStateKey(game);
     if (lastVibrationRef.current === turnStateKey) return;
     lastVibrationRef.current = turnStateKey;
-    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    if (navigator?.vibrate) {
       navigator.vibrate(TURN_VIBRATION_MS);
     }
   }, [game?.currentPlayer, game?.id, game?.phase, game?.round, screen, selectedPlayer]);
