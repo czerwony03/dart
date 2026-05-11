@@ -822,6 +822,7 @@ const VALID_LANGS   = ['en', 'pl'];
 const MAX_PLAYERS   = 8;
 const API_GAME_URL  = 'https://redtm.pl/dart/game.php';
 const POLL_MS       = 1000;
+const REFRESH_THROTTLE_MS = 250;
 const TURN_VIBRATION_MS = 120;
 
 /* ─── Translations ───────────────────────────────────────────────────────────── */
@@ -1889,7 +1890,7 @@ function App() {
     if (!id) return;
     const now = Date.now();
     if (refreshInFlightRef.current) return;
-    if (now - lastRefreshAtRef.current < 250) return;
+    if (now - lastRefreshAtRef.current < REFRESH_THROTTLE_MS) return;
     refreshInFlightRef.current = true;
     lastRefreshAtRef.current = now;
     try {
@@ -1924,7 +1925,6 @@ function App() {
     window.addEventListener('focus', triggerRefresh);
     window.addEventListener('pageshow', triggerRefresh);
     window.addEventListener('online', triggerRefresh);
-    triggerRefresh();
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('focus', triggerRefresh);
