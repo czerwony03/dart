@@ -366,6 +366,15 @@
 
     .score-card.active { background: #e94560; }
 
+    .score-card-self .sc-name,
+    .sc-name-self {
+      color: #7bdcff;
+    }
+
+    .score-card.active .sc-name-self {
+      color: #fff3a6;
+    }
+
     .sc-name {
       font-size: 0.65rem;
       font-weight: 600;
@@ -510,6 +519,50 @@
       font-size: 0.95rem;
       font-weight: 700;
       color: #ffd700;
+    }
+
+    .identity-modal {
+      width: min(420px, 100%);
+      background: #121a31;
+      border: 1px solid #2e2e4a;
+      border-radius: 14px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .identity-modal-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #ffd700;
+      text-align: center;
+    }
+
+    .identity-modal-hint {
+      color: #9aa4c0;
+      font-size: 0.88rem;
+      text-align: center;
+    }
+
+    .identity-player-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .identity-player-btn {
+      justify-content: flex-start;
+      width: 100%;
+      padding: 0.95rem 1rem;
+      background: #1b2747;
+      color: #fff;
+      border: 1px solid #2e3e6b;
+    }
+
+    .identity-player-btn:hover,
+    .identity-player-btn:focus {
+      filter: brightness(1.08);
     }
 
     .history-modal-content {
@@ -762,12 +815,14 @@ const LS_ACTIVE  = 'dart501_active';
 const LS_HISTORY = 'dart501_history';
 const LS_LANG    = 'dart501_lang';
 const LS_PLAYER_SUGGESTIONS = 'dart501_player_suggestions';
+const LS_PLAYER_IDENTITIES  = 'dart501_player_identities';
 const GAME_ID_PARAM = 'game';
 const LANG_PARAM    = 'lang';
 const VALID_LANGS   = ['en', 'pl'];
 const MAX_PLAYERS   = 8;
 const API_GAME_URL  = 'https://redtm.pl/dart/game.php';
 const POLL_MS       = 1000;
+const TURN_VIBRATION_MS = 120;
 
 /* ─── Translations ───────────────────────────────────────────────────────────── */
 const TRANSLATIONS = {
@@ -827,6 +882,8 @@ const TRANSLATIONS = {
     pointsShort:      'pts',
     linkCopied:       'Link copied',
     syncOffline:      'Sync offline',
+    whoAreYou:        'Who are you?',
+    choosePlayer:     'Choose your player from the list.',
   },
   pl: {
     inProgress:       'W trakcie',
@@ -884,6 +941,8 @@ const TRANSLATIONS = {
     pointsShort:      'pkt',
     linkCopied:       'Link skopiowany',
     syncOffline:      'Synchronizacja offline',
+    whoAreYou:        'Kim jesteś?',
+    choosePlayer:     'Wybierz siebie z listy graczy.',
   },
 };
 
@@ -917,6 +976,25 @@ const readPlayerSuggestions = () => {
 };
 const writePlayerSuggestions = names => {
   try { localStorage.setItem(LS_PLAYER_SUGGESTIONS, JSON.stringify(names)); } catch { /* ignore */ }
+};
+const readPlayerIdentities = () => {
+  try {
+    const data = JSON.parse(localStorage.getItem(LS_PLAYER_IDENTITIES));
+    return data && typeof data === 'object' ? data : {};
+  } catch {
+    return {};
+  }
+};
+const readPlayerIdentity = gameId => {
+  if (!gameId) return null;
+  const stored = readPlayerIdentities()[gameId];
+  return Number.isInteger(stored) ? stored : null;
+};
+const writePlayerIdentity = (gameId, playerIndex) => {
+  if (!gameId || !Number.isInteger(playerIndex)) return;
+  const identities = readPlayerIdentities();
+  identities[gameId] = playerIndex;
+  try { localStorage.setItem(LS_PLAYER_IDENTITIES, JSON.stringify(identities)); } catch { /* ignore */ }
 };
 
 function dedupePlayerNames(names) {
@@ -1082,6 +1160,21 @@ function playerAvg(g, i) {
   const pointsScored    = g.startScore - g.scores[i];
   const roundsCompleted = i > g.winner ? g.round - 1 : g.round;
   return roundsCompleted > 0 ? (pointsScored / roundsCompleted).toFixed(1) : '—';
+}
+
+function isValidPlayerIndex(playerIndex, game) {
+  const playerCount = game?.players?.length ?? 0;
+  return Number.isInteger(playerIndex)
+    && playerIndex >= 0
+    && playerIndex < playerCount;
+}
+
+function getTurnStateKey(game) {
+  return `${game.id}:${game.round}:${game.currentPlayer}`;
+}
+
+function hasUndoableState(game) {
+  return game.darts.length > 0 || game.isBust || Boolean(game.stateHistory && game.stateHistory.length > 0);
 }
 
 /* ─── Date formatting ────────────────────────────────────────────────────────── */
@@ -1452,7 +1545,7 @@ function SetupScreen({ onStart, onBack }) {
 }
 
 /* ─── GameScreen ─────────────────────────────────────────────────────────────── */
-function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
+function GameScreen({ game, selectedPlayer, onSelectPlayer, onDartHit, onUndo, onAdvance, onHome, onShare }) {
   const { t } = useLang();
   const [manualVal, setManualVal] = useState('');
   const [manualErr, setManualErr] = useState(false);
@@ -1461,6 +1554,13 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
 
   const cp     = game.currentPlayer;
   const locked = game.darts.length >= 3 || game.isBust;
+  const hasValidPlayerSelection = isValidPlayerIndex(selectedPlayer, game);
+  const controlsLocked = locked || !hasValidPlayerSelection;
+  const canUndo = hasValidPlayerSelection && hasUndoableState(game);
+  const handleBoardHit = useCallback((...args) => {
+    if (controlsLocked) return;
+    onDartHit(...args);
+  }, [controlsLocked, onDartHit]);
 
   const nextLabel = (game.darts.length >= 3 || game.isBust)
     ? t('nextPlayer')
@@ -1550,10 +1650,10 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
           return (
             <button key={i}
                     type="button"
-                    className={`score-card score-card-btn${i === cp ? ' active' : ''}`}
+                    className={`score-card score-card-btn${i === cp ? ' active' : ''}${i === selectedPlayer ? ' score-card-self' : ''}`}
                     onClick={() => setHistoryModal(i)}
                     aria-label={`${t('playerHistory')}: ${name}`}>
-              <span className="sc-name">{name}</span>
+              <span className={`sc-name${i === selectedPlayer ? ' sc-name-self' : ''}`}>{name}</span>
               <span className="sc-val">{game.scores[i]}</span>
               <span className="sc-avg">{t('avg')} {avg}</span>
             </button>
@@ -1562,7 +1662,7 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
       </div>
 
       <div className="dartboard-wrap">
-        <Dartboard onHit={onDartHit} />
+        <Dartboard onHit={handleBoardHit} />
       </div>
 
       <div className="game-bottom">
@@ -1604,25 +1704,46 @@ function GameScreen({ game, onDartHit, onUndo, onAdvance, onHome, onShare }) {
             placeholder={t('manualHint')}
             inputMode="numeric"
             value={manualVal}
-            disabled={locked}
+            disabled={controlsLocked}
             style={manualErr ? { borderColor: '#e94560' } : {}}
             onChange={e => setManualVal(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && submitManual()}
           />
-          <button className="btn btn-amber" disabled={locked}
+          <button className="btn btn-amber" disabled={controlsLocked}
                   onClick={() => onDartHit(0, 'Miss', true)}>{t('miss')}</button>
-          <button className="btn btn-green" disabled={locked}
+          <button className="btn btn-green" disabled={controlsLocked}
                   onClick={submitManual}>{t('add')}</button>
         </div>
 
         <div className="action-row">
           <button className="btn btn-gray" style={{ flex: 1 }}
-                  disabled={game.darts.length === 0 && !game.isBust && !(game.stateHistory && game.stateHistory.length > 0)}
+                  disabled={!canUndo}
                   onClick={onUndo}>{t('undo')}</button>
           <button className="btn btn-red" style={{ flex: 2 }}
+                  disabled={!hasValidPlayerSelection}
                   onClick={onAdvance}>{nextLabel}</button>
         </div>
       </div>
+
+      {!hasValidPlayerSelection && (
+        <div className="history-modal-backdrop">
+          <div className="identity-modal" role="dialog" aria-modal="true" aria-labelledby="identity-modal-title">
+            <div id="identity-modal-title" className="identity-modal-title">{t('whoAreYou')}</div>
+            <div className="identity-modal-hint">{t('choosePlayer')}</div>
+            <div className="identity-player-list">
+              {game.players.map((name, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className="btn identity-player-btn"
+                  onClick={() => onSelectPlayer(i)}>
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {historyModal !== null && (
         <div className="history-modal-backdrop" onClick={() => setHistoryModal(null)}>
@@ -1714,6 +1835,7 @@ function App() {
   const [screen,  setScreen]  = useState('home');
   const [game,    setGame]    = useState(null);
   const [history, setHistory] = useState(() => readHistory());
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [toastMsg, showToast] = useToast();
   const [lang, setLangState]  = useState(() => {
     const urlLang = getLangFromUrl();
@@ -1824,6 +1946,27 @@ function App() {
     }
   }, [game?.phase, screen]);
 
+  useEffect(() => {
+    if (screen !== 'game' || !game?.id) return;
+    const storedPlayer = readPlayerIdentity(game.id);
+    setSelectedPlayer(isValidPlayerIndex(storedPlayer, game) ? storedPlayer : null);
+  }, [game?.id, game?.players?.length, screen]);
+
+  const lastVibrationRef = useRef(null);
+  useEffect(() => {
+    if (screen !== 'game') lastVibrationRef.current = null;
+  }, [screen]);
+  useEffect(() => {
+    if (screen !== 'game' || game?.phase !== 'playing') return;
+    if (!isValidPlayerIndex(selectedPlayer, game) || selectedPlayer !== game.currentPlayer) return;
+    const turnStateKey = getTurnStateKey(game);
+    if (lastVibrationRef.current === turnStateKey) return;
+    lastVibrationRef.current = turnStateKey;
+    if (navigator?.vibrate) {
+      navigator.vibrate(TURN_VIBRATION_MS);
+    }
+  }, [game?.currentPlayer, game?.id, game?.phase, game?.round, screen, selectedPlayer]);
+
   /* Show BUST toast on transition to isBust */
   const wasBustRef = useRef(false);
   useEffect(() => {
@@ -1858,6 +2001,12 @@ function App() {
   }, [lang]);
 
   const handleViewGame = useCallback(g => { setGame(g); setScreen('view'); }, []);
+
+  const handleSelectPlayer = useCallback(playerIndex => {
+    if (!game?.id || !isValidPlayerIndex(playerIndex, game)) return;
+    writePlayerIdentity(game.id, playerIndex);
+    setSelectedPlayer(playerIndex);
+  }, [game]);
 
   const handleDeleteGame = useCallback(id => {
     const h = readHistory().filter(g => g.id !== id);
@@ -1961,6 +2110,8 @@ function App() {
         {screen === 'game' && game && (
           <GameScreen
             game={game}
+            selectedPlayer={selectedPlayer}
+            onSelectPlayer={handleSelectPlayer}
             onDartHit={dartHit}
             onUndo={undoDart}
             onAdvance={advancePlayer}
