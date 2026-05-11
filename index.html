@@ -765,6 +765,7 @@ const LS_PLAYER_SUGGESTIONS = 'dart501_player_suggestions';
 const GAME_ID_PARAM = 'game';
 const LANG_PARAM    = 'lang';
 const VALID_LANGS   = ['en', 'pl'];
+const MAX_PLAYERS   = 8;
 const API_GAME_URL  = 'https://redtm.pl/dart/game.php';
 const POLL_MS       = 1000;
 
@@ -1355,7 +1356,7 @@ function SetupScreen({ onStart, onBack }) {
   const listId = 'player-name-suggestions';
 
   const updateName = (i, val) => setPlayers(prev => { const p = [...prev]; p[i] = val; return p; });
-  const addPlayer  = ()       => setPlayers(p => [...p, '']);
+  const addPlayer  = ()       => { if (players.length < MAX_PLAYERS) setPlayers(p => [...p, '']); };
   const delPlayer  = i        => setPlayers(p => p.filter((_, j) => j !== i));
   const handleShuffle = ()    => setPlayers(prev => shufflePlayers(prev));
   const canShuffle = players.map(n => n.trim()).filter(Boolean).length > 1;
@@ -1434,7 +1435,9 @@ function SetupScreen({ onStart, onBack }) {
       </div>
 
       <div className="setup-actions">
-        <button className="btn btn-gray" onClick={addPlayer}>{t('addPlayer')}</button>
+        {players.length < MAX_PLAYERS && (
+          <button className="btn btn-gray" onClick={addPlayer}>{t('addPlayer')}</button>
+        )}
         <button className="btn btn-gray"
                 aria-label={t('shufflePlayers')}
                 onClick={handleShuffle}
