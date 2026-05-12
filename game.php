@@ -3,9 +3,12 @@
  * Dart 501 – Game state sync backend
  *
  * GET  ?id=<gameId>        → returns stored game-state JSON (or 404)
- * POST body: {"id":"…","state":{…}} → saves game-state JSON (last-write-wins)
+ * GET  ?code=<roomCode>    → returns {"gameId":"…"} for the latest game under that code (or 404)
+ * POST body: {"id":"…","state":{…}}         → saves game-state JSON (last-write-wins)
+ * POST body: {"code":"…","gameId":"…"}      → creates/updates a room-code → gameId mapping
  *
  * Game states are stored as plain JSON files in the ./games/ directory.
+ * Room-code mappings are stored in the ./codes/ directory.
  * Files older than 24 h are pruned on every POST to avoid unbounded growth.
  */
 
@@ -30,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 /* ── Config ── */
 define('GAMES_DIR',     __DIR__ . '/games');
+define('CODES_DIR',     __DIR__ . '/codes');
 define('MAX_BODY',      65536);          // 64 KB per game file
 define('MAX_AGE_SECS',  86400);          // prune files older than 24 h
 
@@ -37,6 +41,11 @@ define('MAX_AGE_SECS',  86400);          // prune files older than 24 h
 if (!is_dir(GAMES_DIR) && !mkdir(GAMES_DIR, 0750, true)) {
     http_response_code(500);
     echo json_encode(['error' => 'Storage unavailable']);
+    exit;
+}
+if (!is_dir(CODES_DIR) && !mkdir(CODES_DIR, 0750, true)) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Codes storage unavailable']);
     exit;
 }
 
@@ -51,9 +60,24 @@ function validate_id(string $raw): ?string
     return null;
 }
 
+function validate_room_code(string $raw): ?string
+{
+    // Accept exactly XXXX-XXXX where X is A-Z (uppercase)
+    $code = strtoupper(trim($raw));
+    if (preg_match('/^[A-Z]{4}-[A-Z]{4}$/', $code)) {
+        return $code;
+    }
+    return null;
+}
+
 function game_file(string $id): string
 {
     return GAMES_DIR . '/' . $id . '.json';
+}
+
+function code_file(string $code): string
+{
+    return CODES_DIR . '/' . $code . '.json';
 }
 
 function prune_old_games(): void
@@ -70,8 +94,50 @@ function prune_old_games(): void
     }
 }
 
-/* ── GET – fetch game state ── */
+function prune_old_codes(): void
+{
+    $files = glob(CODES_DIR . '/*.json');
+    if (!$files) {
+        return;
+    }
+    $cutoff = time() - MAX_AGE_SECS;
+    foreach ($files as $file) {
+        if (filemtime($file) < $cutoff) {
+            @unlink($file);
+        }
+    }
+}
+
+/* ── GET – fetch game state or resolve room code ── */
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    // Room-code lookup: ?code=XXXX-XXXX
+    if (isset($_GET['code'])) {
+        $code = validate_room_code($_GET['code'] ?? '');
+        if ($code === null) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid room code']);
+            exit;
+        }
+
+        $file = code_file($code);
+        if (!is_file($file)) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Room code not found']);
+            exit;
+        }
+
+        $data = file_get_contents($file);
+        if ($data === false) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Could not read room code']);
+            exit;
+        }
+
+        echo $data;
+        exit;
+    }
+
+    // Game-state lookup: ?id=<gameId>
     $id = validate_id($_GET['id'] ?? '');
     if ($id === null) {
         http_response_code(400);
@@ -97,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     exit;
 }
 
-/* ── POST – save game state ── */
+/* ── POST – save game state or update room-code mapping ── */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $raw = file_get_contents('php://input');
     if ($raw === false || strlen($raw) > MAX_BODY) {
@@ -113,6 +179,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    // Room-code update: { code, gameId } — no state field
+    if (isset($body['code']) && !isset($body['state'])) {
+        $code   = validate_room_code($body['code'] ?? '');
+        $gameId = validate_id($body['gameId'] ?? '');
+
+        if ($code === null) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid room code']);
+            exit;
+        }
+        if ($gameId === null) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid or missing gameId']);
+            exit;
+        }
+
+        $json = json_encode(['gameId' => $gameId]);
+        $file = code_file($code);
+        if (file_put_contents($file, $json, LOCK_EX) === false) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Could not write room code']);
+            exit;
+        }
+
+        @prune_old_codes();
+
+        http_response_code(200);
+        echo json_encode(['ok' => true]);
+        exit;
+    }
+
+    // Game-state save: { id, state }
     $id = validate_id($body['id'] ?? '');
     if ($id === null) {
         http_response_code(400);

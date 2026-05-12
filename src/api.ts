@@ -16,3 +16,19 @@ export async function fetchFromBackend(id: string): Promise<Game | null> {
   const data = await res.json() as { id?: string } | null;
   return data?.id ? (data as Game) : null;
 }
+
+export async function updateRoomCode(code: string, gameId: string): Promise<void> {
+  await fetch(API_GAME_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, gameId }),
+  }).catch(() => {}); // fire-and-forget — silently ignore offline errors
+}
+
+export async function fetchGameByRoomCode(code: string): Promise<Game | null> {
+  const res = await fetch(`${API_GAME_URL}?code=${encodeURIComponent(code)}`);
+  if (!res.ok) return null;
+  const data = await res.json() as { gameId?: string } | null;
+  if (!data?.gameId) return null;
+  return fetchFromBackend(data.gameId);
+}
