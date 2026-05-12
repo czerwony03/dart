@@ -359,7 +359,7 @@ export function App() {
     const remote = await fetchGameByRoomCode(code).catch(() => null);
     if (!remote?.id) { showToast(t('gameNotFound')); return; }
     if (await followSuccessorGame(remote.id, remote.nextGameId)) return;
-    setGameUrlParam(remote.id, lang, remote.roomCode ?? code);
+    setGameUrlParam(remote.id, lang, remote.roomCode ?? null);
     setGame(remote);
     setScreen(remote.phase === 'won' ? 'win' : 'game');
   }, [followSuccessorGame, lang, showToast, t]);
