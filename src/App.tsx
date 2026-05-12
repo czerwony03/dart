@@ -9,15 +9,16 @@ import {
 } from './storage';
 import {
   newGame, shufflePlayers, normalizeFinishMode, normalizeLang,
-  getGameIdFromUrl, getLangFromUrl, setGameUrlParam, clearGameUrlParam, getGameShareUrl,
+  getGameIdFromUrl, getLangFromUrl, getRoomCodeFromUrl, setGameUrlParam, clearGameUrlParam, getGameShareUrl,
   isValidPlayerIndex, getTurnStateKey,
 } from './game';
-import { syncToBackend, fetchFromBackend } from './api';
+import { syncToBackend, fetchFromBackend, updateRoomCode, fetchGameByRoomCode } from './api';
 import { HomeScreen } from './components/HomeScreen';
 import { SetupScreen } from './components/SetupScreen';
 import { GameScreen } from './components/GameScreen';
 import { WinScreen } from './components/WinScreen';
 import { Toast } from './components/Toast';
+import { ShareModal } from './components/ShareModal';
 import type { NewGameOptions } from './types';
 
 export function App() {
@@ -27,6 +28,7 @@ export function App() {
   const [selectedPlayer, setSelectedPlayer] = useState<number | null>(null);
   const [toastMsg, showToast] = useToast();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const [lang, setLangState]  = useState<Lang>(() => {
     const urlLang = getLangFromUrl();
     if (urlLang) return urlLang as Lang;
@@ -52,7 +54,7 @@ export function App() {
     if (!nextGameId || nextGameId === currentGameId) return false;
     const nextRemote = await fetchFromBackend(nextGameId);
     if (!nextRemote?.id || nextRemote.id !== nextGameId) return false;
-    setGameUrlParam(nextGameId, lang);
+    setGameUrlParam(nextGameId, lang, nextRemote.roomCode);
     setGame(nextRemote);
     setScreen(nextRemote.phase === 'won' ? 'win' : 'game');
     return true;
@@ -151,10 +153,23 @@ export function App() {
     };
   }, [game?.id, screen, refreshFromBackend]);
 
-  /* On mount: load game from ?game=<id> URL param (offline-safe) */
+  /* On mount: load game from ?code=XXXX-XXXX or ?game=<id> URL param (offline-safe) */
   useEffect(() => {
-    const urlId = getGameIdFromUrl();
+    const urlCode = getRoomCodeFromUrl();
+    const urlId   = getGameIdFromUrl();
     const urlLang = getLangFromUrl();
+
+    // Handle room code entry: ?code=XXXX-XXXX
+    if (urlCode) {
+      fetchGameByRoomCode(urlCode).then(async remote => {
+        if (!remote?.id) return;
+        if (await followSuccessorGame(remote.id, remote.nextGameId)) return;
+        setGame(remote);
+        setScreen(remote.phase === 'won' ? 'win' : 'game');
+      }).catch(() => {}); // backend offline — silently ignore
+      return;
+    }
+
     if (!urlId) return;
     try {
       const params = new URLSearchParams(window.location.search);
@@ -238,14 +253,16 @@ export function App() {
     const previousWon = game?.phase === 'won' ? game : null;
     const g = newGame(players, opts);
     announceNextGame(previousWon, g.id);
+    if (g.roomCode) updateRoomCode(g.roomCode, g.id).catch(() => {});
     setGame(g);
-    setGameUrlParam(g.id, lang);
+    setGameUrlParam(g.id, lang, g.roomCode);
     setScreen('game');
+    setShareModalOpen(true);
   }, [announceNextGame, game, lang]);
 
   const handleResume = useCallback(() => {
     const active = readActive();
-    if (active) { setGame(active); setGameUrlParam(active.id, lang); setScreen('game'); }
+    if (active) { setGame(active); setGameUrlParam(active.id, lang, active.roomCode); setScreen('game'); }
   }, [lang]);
 
   const handleViewGame = useCallback((g: Game) => { setGame(g); setScreen('view'); }, []);
@@ -320,23 +337,32 @@ export function App() {
   }, []);
 
   const handleShare = useCallback(() => {
-    if (!game?.id) return;
-    const url = getGameShareUrl(game.id, lang);
-    if (navigator.share) {
-      navigator.share({ url, title: '🎯 Dart 501' }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(url).then(() => showToast(t('linkCopied'))).catch(() => {});
-    }
-  }, [game?.id, lang, showToast, t]);
+    setShareModalOpen(true);
+  }, []);
 
   const rematch = useCallback(() => {
     if (!game) return;
-    const g = newGame(shufflePlayers(game.players), { startScore: game.startScore, finishMode: game.finishMode });
+    const g = newGame(shufflePlayers(game.players), {
+      startScore: game.startScore,
+      finishMode: game.finishMode,
+      roomCode:   game.roomCode ?? undefined,
+    });
     announceNextGame(game, g.id);
+    if (g.roomCode) updateRoomCode(g.roomCode, g.id).catch(() => {});
     setGame(g);
-    setGameUrlParam(g.id, lang);
+    setGameUrlParam(g.id, lang, g.roomCode);
     setScreen('game');
+    setShareModalOpen(true);
   }, [announceNextGame, game, lang]);
+
+  const handleJoinByCode = useCallback(async (code: string) => {
+    const remote = await fetchGameByRoomCode(code).catch(() => null);
+    if (!remote?.id) { showToast(t('gameNotFound')); return; }
+    if (await followSuccessorGame(remote.id, remote.nextGameId)) return;
+    setGameUrlParam(remote.id, lang, remote.roomCode ?? code);
+    setGame(remote);
+    setScreen(remote.phase === 'won' ? 'win' : 'game');
+  }, [followSuccessorGame, lang, showToast, t]);
 
   /* ── Render ── */
   return (
@@ -350,6 +376,7 @@ export function App() {
             onViewGame={handleViewGame}
             onDeleteGame={handleDeleteGame}
             onClearHistory={handleClearHistory}
+            onJoinByCode={handleJoinByCode}
           />
         )}
         {screen === 'setup' && (
@@ -379,6 +406,13 @@ export function App() {
         )}
         {screen === 'view' && game && (
           <WinScreen game={game} onHome={goHome} readOnly={true} />
+        )}
+        {shareModalOpen && game && (
+          <ShareModal
+            roomCode={game.roomCode ?? null}
+            shareUrl={getGameShareUrl(game.id, lang, game.roomCode)}
+            onClose={() => setShareModalOpen(false)}
+          />
         )}
         <Toast msg={toastMsg} />
       </>

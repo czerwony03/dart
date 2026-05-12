@@ -1,5 +1,5 @@
 import type { Game, FinishMode, NewGameOptions } from './types';
-import { VALID_LANGS, GAME_ID_PARAM, LANG_PARAM } from './constants';
+import { VALID_LANGS, GAME_ID_PARAM, ROOM_CODE_PARAM, LANG_PARAM } from './constants';
 import { readPlayerSuggestions, writePlayerSuggestions, readHistory, readActive } from './storage';
 
 /* ─── Language helpers ───────────────────────────────────────────────────── */
@@ -17,11 +17,22 @@ export function getLangFromUrl(): string | null {
   try { return normalizeLang(new URLSearchParams(window.location.search).get(LANG_PARAM)); } catch { return null; }
 }
 
-export function setGameUrlParam(id: string, lang: string | null): void {
+export function getRoomCodeFromUrl(): string | null {
+  try {
+    const code = new URLSearchParams(window.location.search).get(ROOM_CODE_PARAM) ?? null;
+    return code && /^[A-Z]{4}-[A-Z]{4}$/.test(code) ? code : null;
+  } catch { return null; }
+}
+
+export function setGameUrlParam(id: string, lang: string | null, roomCode?: string | null): void {
   try {
     const u = new URL(window.location.href);
     u.search = '';
-    u.searchParams.set(GAME_ID_PARAM, id);
+    if (roomCode) {
+      u.searchParams.set(ROOM_CODE_PARAM, roomCode);
+    } else {
+      u.searchParams.set(GAME_ID_PARAM, id);
+    }
     const normalizedLang = normalizeLang(lang);
     if (normalizedLang) u.searchParams.set(LANG_PARAM, normalizedLang);
     window.history.replaceState(null, '', u.toString());
@@ -46,13 +57,25 @@ export function buildGameQueryString(id: string, lang: string | null): string {
   return searchParams.toString();
 }
 
-export function getGameShareUrl(id: string, lang: string | null): string {
+export function buildShareQueryString(roomCode: string | null, gameId: string, lang: string | null): string {
+  const params = new URLSearchParams();
+  if (roomCode) {
+    params.set(ROOM_CODE_PARAM, roomCode);
+  } else {
+    params.set(GAME_ID_PARAM, gameId);
+  }
+  const normalizedLang = normalizeLang(lang);
+  if (normalizedLang) params.set(LANG_PARAM, normalizedLang);
+  return params.toString();
+}
+
+export function getGameShareUrl(id: string, lang: string | null, roomCode?: string | null): string {
   try {
     const u = new URL(window.location.href);
-    u.search = buildGameQueryString(id, lang);
+    u.search = buildShareQueryString(roomCode ?? null, id, lang);
     return u.toString();
   } catch {
-    return `${window.location.origin}${window.location.pathname}?${buildGameQueryString(id, lang)}`;
+    return `${window.location.origin}${window.location.pathname}?${buildShareQueryString(roomCode ?? null, id, lang)}`;
   }
 }
 
@@ -60,6 +83,18 @@ export function getGameShareUrl(id: string, lang: string | null): string {
 export function genId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+export function genRoomCode(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const seg = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  return `${seg()}-${seg()}`;
+}
+
+export function normalizeRoomCode(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const code = raw.trim().toUpperCase();
+  return /^[A-Z]{4}-[A-Z]{4}$/.test(code) ? code : null;
 }
 
 export function normalizeFinishMode(mode: unknown): FinishMode {
@@ -88,6 +123,7 @@ export function shufflePlayers(players: string[]): string[] {
 export function newGame(players: string[], opts: NewGameOptions = {}): Game {
   const startScore = opts.startScore ?? 501;
   const finishMode = normalizeFinishMode(opts.finishMode);
+  const roomCode   = opts.roomCode !== undefined ? opts.roomCode : genRoomCode();
   return {
     id:            genId(),
     phase:         'playing',
@@ -105,6 +141,7 @@ export function newGame(players: string[], opts: NewGameOptions = {}): Game {
     startedAt:     Date.now(),
     finishedAt:    null,
     nextGameId:    null,
+    roomCode,
     stateHistory:  [],
   };
 }

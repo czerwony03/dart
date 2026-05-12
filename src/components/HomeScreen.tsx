@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import type { Game } from '../types';
 import { useLang } from '../context';
 import { readActive } from '../storage';
-import { playerAvg, fmtDate } from '../game';
+import { playerAvg, fmtDate, normalizeRoomCode } from '../game';
 
 interface HomeScreenProps {
   history: Game[];
@@ -10,15 +11,33 @@ interface HomeScreenProps {
   onViewGame: (g: Game) => void;
   onDeleteGame: (id: string) => void;
   onClearHistory: () => void;
+  onJoinByCode: (code: string) => void;
 }
 
-export function HomeScreen({ history, onNewGame, onResume, onViewGame, onDeleteGame, onClearHistory }: HomeScreenProps) {
+export function HomeScreen({ history, onNewGame, onResume, onViewGame, onDeleteGame, onClearHistory, onJoinByCode }: HomeScreenProps) {
   const { t, lang, setLang } = useLang();
   const active = readActive();
+  const [codeInput, setCodeInput] = useState('');
+  const [codeError, setCodeError] = useState('');
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     onDeleteGame(id);
+  };
+
+  const handleJoin = () => {
+    const normalized = normalizeRoomCode(codeInput);
+    if (!normalized) {
+      setCodeError(t('invalidCode'));
+      setTimeout(() => setCodeError(''), 2500);
+      return;
+    }
+    setCodeError('');
+    onJoinByCode(normalized);
+  };
+
+  const handleCodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') handleJoin();
   };
 
   return (
@@ -49,6 +68,26 @@ export function HomeScreen({ history, onNewGame, onResume, onViewGame, onDeleteG
               onClick={onNewGame}>
         {t('newGame')}
       </button>
+
+      <div className="join-code-section">
+        <div className="join-code-label">{t('joinByCode')}</div>
+        <div className="join-code-row">
+          <input
+            type="text"
+            className="join-code-input"
+            placeholder={t('codeInputPlaceholder')}
+            value={codeInput}
+            maxLength={9}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            onChange={e => setCodeInput(e.target.value.toUpperCase())}
+            onKeyDown={handleCodeKeyDown}
+          />
+          <button className="btn btn-amber" onClick={handleJoin}>{t('joinGame')}</button>
+        </div>
+        {codeError && <div className="join-code-error">{codeError}</div>}
+      </div>
 
       {history.length > 0 && (
         <div className="history-section">

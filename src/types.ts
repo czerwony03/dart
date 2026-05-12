@@ -25,12 +25,14 @@ export interface Game {
   startedAt: number;
   finishedAt: number | null;
   nextGameId: string | null;
+  roomCode: string | null;
   stateHistory: Omit<Game, 'stateHistory'>[];
 }
 
 export interface NewGameOptions {
   startScore?: number;
   finishMode?: FinishMode;
+  roomCode?: string | null;
 }
 
 export interface LangContextValue {

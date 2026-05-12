@@ -791,3 +791,119 @@ input[type="number"]:focus { border-color: #e94560; }
 }
 
 .toast-inner.show { opacity: 1; transform: scale(1); }
+
+/* ─── SHARE MODAL ────────────────────────────────────────────────────────── */
+.share-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  padding: 1rem;
+}
+
+.share-modal {
+  background: #1c1c30;
+  border-radius: 18px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+.share-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.share-modal-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.share-code-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  background: #12121e;
+  border-radius: 12px;
+  padding: 1.25rem 1rem;
+}
+
+.share-code-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #888;
+}
+
+.share-code-display {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #e94560;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.share-code-hint {
+  font-size: 0.78rem;
+  color: #888;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.share-btn {
+  width: 100%;
+  font-size: 1rem;
+}
+
+.share-url-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* ─── JOIN BY CODE (Home Screen) ─────────────────────────────────────────── */
+.join-code-section {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.join-code-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.join-code-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: stretch;
+}
+
+.join-code-input {
+  flex: 1;
+  font-size: 1.1rem;
+  font-family: 'Courier New', Courier, monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.join-code-error {
+  font-size: 0.82rem;
+  color: #e94560;
+}
