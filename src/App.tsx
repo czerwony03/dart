@@ -337,8 +337,12 @@ export function App() {
   }, []);
 
   const handleShare = useCallback(() => {
+    if (game) {
+      syncToBackend(game);
+      if (game.roomCode) updateRoomCode(game.roomCode, game.id).catch(() => {});
+    }
     setShareModalOpen(true);
-  }, []);
+  }, [game]);
 
   const rematch = useCallback(() => {
     if (!game) return;
