@@ -1,0 +1,17 @@
+export const BOARD      = [20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5] as const;
+export const LS_ACTIVE  = 'dart501_active';
+export const LS_HISTORY = 'dart501_history';
+export const LS_LANG    = 'dart501_lang';
+export const LS_PLAYER_SUGGESTIONS = 'dart501_player_suggestions';
+export const LS_PLAYER_IDENTITIES  = 'dart501_player_identities';
+export const GAME_ID_PARAM = 'game';
+export const LANG_PARAM    = 'lang';
+export const VALID_LANGS   = ['en', 'pl'] as const;
+export const MAX_PLAYERS   = 8;
+export const API_GAME_URL  = 'https://redtm.pl/dart/game.php';
+export const POLL_MS       = 1000;
+export const REFRESH_THROTTLE_MS = 250;
+export const MAX_FORCE_REFRESH_QUEUE = 3;
+export const LIVE_MESSAGE_DURATION_MS = 1500;
+export const NEXT_TICK_MS = 0;
+export const TURN_VIBRATION_MS = 120;
