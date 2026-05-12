@@ -356,7 +356,6 @@ export function App() {
     setGame(g);
     setGameUrlParam(g.id, lang, g.roomCode);
     setScreen('game');
-    setShareModalOpen(true);
   }, [announceNextGame, game, lang]);
 
   const handleJoinByCode = useCallback(async (code: string) => {
