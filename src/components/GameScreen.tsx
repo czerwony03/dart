@@ -89,6 +89,13 @@ export function GameScreen({
     ? calculateCheckout(remaining, dartsLeft, finishMode)
     : null;
 
+  const previousTurnDarts = useMemo(() => {
+    const snapshots = Array.isArray(game.stateHistory) ? game.stateHistory : [];
+    const lastTurn = snapshots[snapshots.length - 1];
+    if (!lastTurn || !Array.isArray(lastTurn.darts)) return [];
+    return lastTurn.darts.slice(0, 3).map(d => d.label).filter(Boolean);
+  }, [game.stateHistory]);
+
   const turnHistoryByPlayer = useMemo(() => {
     const snapshots = Array.isArray(game.stateHistory) ? game.stateHistory : [];
     const turns = snapshots
@@ -186,6 +193,13 @@ export function GameScreen({
 
       <div className="dartboard-wrap">
         <Dartboard onHit={handleBoardHit} />
+        {previousTurnDarts.length > 0 && (
+          <div className="previous-darts-corner" aria-hidden="true">
+            {previousTurnDarts.map((label, i) => (
+              <span key={`${label}-${i}`} className="previous-dart-chip">{label}</span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="game-bottom">
