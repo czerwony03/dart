@@ -76,9 +76,20 @@ export function App() {
   const gameRef = useRef(game);
   useEffect(() => { gameRef.current = game; }, [game]);
   const refreshInFlightRef = useRef(false);
+  const refreshAbortRef = useRef<AbortController | null>(null);
+  const refreshRequestSeqRef = useRef(0);
   const forceRefreshPendingCountRef = useRef(0);
   useEffect(() => { forceRefreshPendingCountRef.current = 0; }, [game?.id]);
   const lastRefreshAtRef = useRef(0);
+
+  const abortActiveRefresh = useCallback(() => {
+    refreshRequestSeqRef.current += 1;
+    refreshAbortRef.current?.abort();
+    refreshAbortRef.current = null;
+    refreshInFlightRef.current = false;
+    forceRefreshPendingCountRef.current = 0;
+    setIsRefreshing(false);
+  }, []);
   const refreshFromBackend = useCallback(async (id: string, options: { force?: boolean; consumeQueued?: boolean } = {}) => {
     if (!id) return;
     const force = Boolean(options.force);
@@ -98,11 +109,15 @@ export function App() {
     }
     // Coalesce near-simultaneous wake events (focus/visibility/online) without affecting 1s polling cadence.
     if (!force && now - lastRefreshAtRef.current < REFRESH_THROTTLE_MS) return;
+    const requestSeq = refreshRequestSeqRef.current + 1;
+    const controller = new AbortController();
+    refreshRequestSeqRef.current = requestSeq;
+    refreshAbortRef.current = controller;
     refreshInFlightRef.current = true;
     lastRefreshAtRef.current = now;
     setIsRefreshing(true);
     try {
-      const remote = await fetchFromBackend(id);
+      const remote = await fetchFromBackend(id, { signal: controller.signal });
       if (!remote?.id || remote.id !== id) return;
       const local = gameRef.current;
       if (!local || local.id !== id) return; // guard: game changed while request was in-flight
@@ -113,6 +128,8 @@ export function App() {
       }
     } catch { /* offline — silently ignore */ }
     finally {
+      if (refreshRequestSeqRef.current !== requestSeq) return;
+      refreshAbortRef.current = null;
       refreshInFlightRef.current = false;
       setIsRefreshing(false);
       if (forceRefreshPendingCountRef.current > 0 && gameRef.current?.id === id) {
@@ -134,24 +151,34 @@ export function App() {
   useEffect(() => {
     if (!game?.id || (screen !== 'game' && screen !== 'win')) return;
     const id = game.id;
-    const triggerRefresh = () => { refreshFromBackend(id); };
+    const triggerRefresh = () => { refreshFromBackend(id, { force: true }); };
+    const abortAndRefresh = () => {
+      abortActiveRefresh();
+      window.setTimeout(triggerRefresh, NEXT_TICK_MS);
+    };
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') triggerRefresh();
+      if (document.visibilityState === 'hidden') abortActiveRefresh();
+      if (document.visibilityState === 'visible') abortAndRefresh();
     };
-    const onPageShow = (event: PageTransitionEvent) => {
-      if (event?.persisted) triggerRefresh();
-    };
+    const onPageShow = () => { abortAndRefresh(); };
+    const onPageHide = () => { abortActiveRefresh(); };
     document.addEventListener('visibilitychange', onVisibilityChange);
+    document.addEventListener('freeze', onPageHide);
+    document.addEventListener('resume', abortAndRefresh);
     window.addEventListener('focus', triggerRefresh);
     window.addEventListener('pageshow', onPageShow);
+    window.addEventListener('pagehide', onPageHide);
     window.addEventListener('online', triggerRefresh);
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
+      document.removeEventListener('freeze', onPageHide);
+      document.removeEventListener('resume', abortAndRefresh);
       window.removeEventListener('focus', triggerRefresh);
       window.removeEventListener('pageshow', onPageShow);
+      window.removeEventListener('pagehide', onPageHide);
       window.removeEventListener('online', triggerRefresh);
     };
-  }, [game?.id, screen, refreshFromBackend]);
+  }, [abortActiveRefresh, game?.id, screen, refreshFromBackend]);
 
   /* On mount: load game from ?code=XXXX-XXXX or ?game=<id> URL param (offline-safe) */
   useEffect(() => {
