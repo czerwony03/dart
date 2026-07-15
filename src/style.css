@@ -587,6 +587,55 @@ input[type="number"]:focus { border-color: #e94560; }
   filter: brightness(1.08);
 }
 
+.slow-refresh-modal {
+  width: min(420px, 100%);
+  background: #121a31;
+  border: 1px solid #2e2e4a;
+  border-radius: 14px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+  text-align: center;
+}
+
+.slow-refresh-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #ffd700;
+}
+
+.slow-refresh-body {
+  color: #9aa4c0;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.slow-refresh-spinner {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #0a1a2e;
+  color: #6ec5ff;
+  font-size: 1.25rem;
+}
+
+.slow-refresh-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+@media (max-width: 380px) {
+  .slow-refresh-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
 .history-modal-content {
   padding: 0.85rem 1rem 1rem;
   overflow-y: auto;

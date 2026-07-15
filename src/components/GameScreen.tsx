@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Game } from '../types';
 import { useLang } from '../context';
-import { LIVE_MESSAGE_DURATION_MS } from '../constants';
+import { LIVE_MESSAGE_DURATION_MS, SLOW_REFRESH_MODAL_DELAY_MS } from '../constants';
 import { normalizeFinishMode, isValidPlayerIndex, hasUndoableState } from '../game';
 import { calculateCheckout } from '../checkout';
 import { Dartboard } from './Dartboard';
@@ -28,6 +28,8 @@ export function GameScreen({
   const [manualErr, setManualErr] = useState(false);
   const [historyModal, setHistoryModal] = useState<number | 'all' | null>(null);
   const [liveRefreshMsg, setLiveRefreshMsg] = useState('');
+  const [showSlowRefreshModal, setShowSlowRefreshModal] = useState(false);
+  const [slowRefreshDismissed, setSlowRefreshDismissed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const wasRefreshingRef = useRef(false);
 
@@ -42,6 +44,28 @@ export function GameScreen({
     const timeoutId = setTimeout(() => setLiveRefreshMsg(''), LIVE_MESSAGE_DURATION_MS);
     return () => clearTimeout(timeoutId);
   }, [liveRefreshMsg]);
+
+  useEffect(() => {
+    if (!refreshing) {
+      setShowSlowRefreshModal(false);
+      setSlowRefreshDismissed(false);
+      return undefined;
+    }
+    if (slowRefreshDismissed) return undefined;
+    const timeoutId = setTimeout(() => setShowSlowRefreshModal(true), SLOW_REFRESH_MODAL_DELAY_MS);
+    return () => clearTimeout(timeoutId);
+  }, [refreshing, slowRefreshDismissed]);
+
+  const closeSlowRefreshModal = useCallback(() => {
+    setShowSlowRefreshModal(false);
+    setSlowRefreshDismissed(true);
+  }, []);
+
+  const retrySlowRefresh = useCallback(() => {
+    setShowSlowRefreshModal(false);
+    setSlowRefreshDismissed(true);
+    onForceRefresh();
+  }, [onForceRefresh]);
 
   const cp     = game.currentPlayer;
   const locked = game.darts.length >= 3 || game.isBust;
@@ -239,6 +263,22 @@ export function GameScreen({
                   {name}
                 </button>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSlowRefreshModal && refreshing && (
+        <div className="history-modal-backdrop">
+          <div className="slow-refresh-modal" role="dialog" aria-modal="true" aria-labelledby="slow-refresh-title">
+            <div id="slow-refresh-title" className="slow-refresh-title">{t('slowRefreshTitle')}</div>
+            <div className="slow-refresh-body">{t('slowRefreshBody')}</div>
+            <div className="slow-refresh-spinner" aria-hidden="true">
+              <span className="refresh-glyph refresh-glyph-spinning">⟳</span>
+            </div>
+            <div className="slow-refresh-actions">
+              <button className="btn btn-gray" type="button" onClick={closeSlowRefreshModal}>{t('keepWaiting')}</button>
+              <button className="btn btn-green" type="button" onClick={retrySlowRefresh}>{t('retryRefresh')}</button>
             </div>
           </div>
         </div>

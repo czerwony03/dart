@@ -4,7 +4,7 @@
  *
  * GET  ?id=<gameId>        → returns stored game-state JSON (or 404)
  * GET  ?code=<roomCode>    → returns {"gameId":"…"} for the latest game under that code (or 404)
- * POST body: {"id":"…","state":{…}}         → saves game-state JSON (last-write-wins)
+ * POST body: {"id":"…","state":{…}}         → saves game-state JSON if it is not stale
  * POST body: {"code":"…","gameId":"…"}      → creates/updates a room-code → gameId mapping
  *
  * Game states are stored as plain JSON files in the ./games/ directory.
@@ -106,6 +106,14 @@ function game_file(string $id): string
 function code_file(string $code): string
 {
     return CODES_DIR . '/' . $code . '.json';
+}
+
+function state_updated_at($state): ?int
+{
+    if (!is_array($state) || !isset($state['updatedAt']) || !is_numeric($state['updatedAt'])) {
+        return null;
+    }
+    return (int) $state['updatedAt'];
 }
 
 function prune_old_games(): void
@@ -292,6 +300,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $file = game_file($id);
+    $incoming_updated_at = state_updated_at($state);
+    if (is_file($file) && $incoming_updated_at !== null) {
+        $existing_raw = file_get_contents($file);
+        $existing_state = $existing_raw === false ? null : json_decode($existing_raw, true);
+        $existing_updated_at = state_updated_at($existing_state);
+
+        if ($existing_updated_at !== null && $existing_updated_at > $incoming_updated_at) {
+            http_response_code(200);
+            echo json_encode(['ok' => true, 'ignored' => 'stale']);
+            exit;
+        }
+    }
+
     if (file_put_contents($file, $json, LOCK_EX) === false) {
         sentry_report("Server error: could not write game file – {$id}", 'error');
         http_response_code(500);
